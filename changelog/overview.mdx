@@ -5,6 +5,23 @@ description: "Product updates and improvements to ZilMate."
 
 Follow along here for the latest updates to ZilMate.
 
+<Update label="June 28, 2026" tags={["v1.10.3"]}>
+  ## v1.10.3 — Smarter self-optimization and steadier prompts
+
+  ### New features
+
+  - **Coding agents now read and write the Corporate Wiki.** Internal app-builder and QA agents can pull live requirements, schemas, and monetization guides from the shared [Corporate Wiki](/memory/corporate-wiki) before scaffolding code, and publish what they learn back for the rest of the swarm. Code generation stays in sync with the rest of the Digital Corporation.
+
+  ### Updates
+
+  - **Offensive + defensive optimization loop.** The background self-learning loop now captures both defensive guardrails (preventing failures) and offensive accelerators (reusable patterns, prompt enhancements). Expect richer recommendations as your swarm runs more tasks.
+  - **Semantic rule deduplication.** The optimizer first checks existing rules in the wiki and only emits net-new or genuinely updated guidelines, so your knowledge base stays tight instead of accumulating duplicates.
+
+  ### Bug fixes
+
+  - **Cleaner interactive prompts.** The "thinking" ticker no longer overwrites confirmation prompts or multi-select checkboxes in the [CLI](/cli/overview). Background spinners pause while you're answering a prompt and resume when you're done — no more misaligned lines or corrupted selections.
+</Update>
+
 <Update label="June 28, 2026" tags={["v1.10.2"]}>
   ## v1.10.2 — Cleaner start-up and a roomier trace viewer
 
