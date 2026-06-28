@@ -1,6 +1,6 @@
 ---
 title: "zilmate talk and manager: Interactive and One-Shot Tasks"
-sidebarTitle: "talk / manager"
+sidebarTitle: "Talk / Manager"
 description: "Use zilmate talk for a persistent interactive chat session or zilmate manager for one-shot task execution routed through the Manager agent."
 ---
 
@@ -22,13 +22,19 @@ To start a session with a specific session ID (for persistent memory and Composi
 zilmate talk --session my-project-session
 ```
 
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-s, --session <id>` | Persistent chat session ID (default: `default`) |
+
 ### How it works
 
 Type your message and press Enter. The Manager routes your request automatically — to a coding specialist, research agent, help agent, or any of the 30+ swarm agents — without any configuration on your part. Results are formatted as Markdown and rendered directly in the terminal.
 
-### Special session commands
+### Slash commands
 
-Inside an active `zilmate talk` session, you can use these slash commands:
+Inside an active `zilmate talk` session, use these slash commands to control the session without leaving it:
 
 | Command | Description |
 |---|---|
@@ -38,11 +44,11 @@ Inside an active `zilmate talk` session, you can use these slash commands:
 | `/voice` | Launch a hands-free microphone cycle for voice input |
 | `/help` | Show available session commands and usage tips |
 
-### Voice mode inside talk
+### Voice mode
 
 If `ZILMATE_VOICE_ENABLED=true` is set in your `.env`, voice mode activates automatically. Type `/voice` inside the session to switch to a hands-free microphone cycle powered by Deepgram. The agent speaks responses back through your speaker using Deepgram Aura TTS.
 
-### Interactive safety features
+### Interactive safety checklist
 
 When the Manager or a specialist agent is about to perform a destructive or write-like action — such as updating a GitHub issue, posting to Slack, or modifying a file — ZilMate pauses and displays an interactive safety checklist. Navigate with arrow keys and toggle checkboxes to approve or reject each action before it executes.
 
@@ -61,6 +67,12 @@ Press `Ctrl+C` or type `exit` to end the session cleanly.
 ```bash
 zilmate manager "<task>"
 ```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-s, --session <id>` | Persistent session ID for Composio state and context (default: `default`) |
 
 ### Examples
 
@@ -101,3 +113,27 @@ echo "AI Summary: $SUMMARY"
 <Note>
 For complex, multi-department tasks that need several specialist agents working in parallel, use `zilmate swarm` instead. Use `zilmate manager` for focused, single-domain requests.
 </Note>
+
+---
+
+## SDK equivalents
+
+Both `talk` and `manager` map to the same underlying SDK method. Use `createZilMate().manager()` in Next.js routes, API handlers, or server workers:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'dashboard-user-123' });
+
+// Equivalent to: zilmate manager "Summarize my open GitHub issues and suggest priorities"
+const { text } = await zilmate.manager({
+  message: 'Summarize my open GitHub issues and suggest priorities',
+});
+
+console.log(text);
+```
+
+| CLI | SDK |
+|---|---|
+| `zilmate talk` | `createZilMate().manager({ message })` (streaming session) |
+| `zilmate manager "<task>"` | `createZilMate().manager({ message })` (one-shot) |

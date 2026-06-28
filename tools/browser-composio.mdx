@@ -1,5 +1,5 @@
 ---
-title: "Browser Automation and Composio App Integrations"
+title: "Browser Automation, Composio, and Web Search Tools"
 sidebarTitle: "Browser & Composio"
 description: "ZilMate agents use Playwright for browser automation and Composio to connect to 100+ external apps including GitHub, Slack, Notion, Stripe, and Linear."
 ---
@@ -10,7 +10,7 @@ Beyond local tools, ZilMate agents can browse the web and interact with external
 
 ## Browser automation (Playwright)
 
-The `browser.tool.ts` integration gives agents a full programmatic browser. Agents use it automatically when you mention a web URL or describe a task that requires visiting a page.
+The browser integration gives agents a full programmatic browser via Playwright. Agents use it automatically when you mention a web URL or describe a task that requires visiting a page.
 
 ### Install Chromium
 
@@ -33,14 +33,16 @@ npx playwright install chromium
     Capture full-page or viewport screenshots and return them to context for visual analysis.
   </Card>
   <Card title="Run visual audits" icon="magnifying-glass">
-    Combine with `visual-audit.tool.ts` to analyze UI/UX patterns, layout, and accessibility from screenshots.
+    Combine with the visual audit capability to analyze UI/UX patterns, layout, and accessibility from screenshots.
   </Card>
 </CardGroup>
 
 ### Example
 
 ```ts
-import { zilmate } from 'zilmate'
+import { createZilMate } from 'zilmate/server'
+
+const zilmate = createZilMate({ sessionId: 'browser-session' })
 
 await zilmate.manager({
   message: 'Go to my GitHub repo and summarize open PRs',
@@ -53,13 +55,13 @@ The agent opens Chromium, navigates to your repository, extracts the list of ope
 
 ## Web Intelligence (Firecrawl / Tavily)
 
-For deep crawling and multi-page research, agents use `web-intelligence.tool.ts` powered by Firecrawl and Tavily. This goes beyond single-page extraction to map site structures, crawl link graphs, and synthesize information across multiple pages.
+For deep crawling and multi-page research, agents use the web intelligence capability powered by Firecrawl and Tavily. This goes beyond single-page extraction to map site structures, crawl link graphs, and synthesize information across multiple pages.
 
 ---
 
 ## Web search (Tavily)
 
-The `web-search.tool.ts` integration gives agents access to real-time web search results via the Tavily API.
+Agents have access to real-time web search results via the Tavily API.
 
 ### Setup
 
@@ -124,7 +126,9 @@ Visit the URL, complete the OAuth flow, then resend your original message. The a
 ### Examples
 
 ```ts
-import { zilmate } from 'zilmate'
+import { createZilMate } from 'zilmate/server'
+
+const zilmate = createZilMate({ sessionId: 'composio-session' })
 
 // Create a GitHub issue
 await zilmate.manager({
@@ -146,13 +150,4 @@ await zilmate.manager({
   Connect your GitHub and Notion accounts via Composio once. From that point on, agents use those connections on every relevant task without prompting you for credentials again.
 </Tip>
 
----
 
-## Tool files reference
-
-| Tool file | Purpose |
-|-----------|---------|
-| `browser.tool.ts` | Playwright-based navigation, extraction, form interaction, and screenshots |
-| `web-intelligence.tool.ts` | Deep multi-page crawling and research via Firecrawl / Tavily |
-| `web-search.tool.ts` | Real-time web search via Tavily API |
-| `composio.tool.ts` | Discovery, auth, and execution for 100+ external app integrations |

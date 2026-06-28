@@ -1,7 +1,7 @@
 ---
 title: "DevOps Tool Suite: Docker, Environments, and Local Setup"
 sidebarTitle: "DevOps Tools"
-description: "ZilMate's DevOps tools give agents the ability to manage Docker containers, read and write environment files, inspect processes, and run local infrastructure commands."
+description: "ZilMate's DevOps tools let agents manage Docker containers, validate env files, control processes, and orchestrate local infrastructure by plain language."
 ---
 
 ZilMate agents automatically reach for DevOps tools when you ask them to set up services, manage containers, or configure local infrastructure. You don't wire anything up — describe the task in plain language and the Manager or swarm agent selects the right tool, runs it, and reports back. Write operations like stopping a container or modifying `.env` always pass through the [approval firewall](/swarm/safety-firewall) before they execute.
@@ -11,7 +11,9 @@ ZilMate agents automatically reach for DevOps tools when you ask them to set up 
 You never call DevOps tools directly from the SDK. They are registered on the Manager and on swarm agents at startup. When you send an infrastructure-related message, the agent reasons over the available tools and calls them in sequence.
 
 ```ts
-import { zilmate } from 'zilmate'
+import { createZilMate } from 'zilmate/server'
+
+const zilmate = createZilMate({ sessionId: 'devops-session' })
 
 const result = await zilmate.manager({
   message: 'Check if my Docker services are running and restart any that are stopped',

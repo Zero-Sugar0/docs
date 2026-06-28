@@ -1,7 +1,7 @@
 ---
 title: "Configure ZilMate: API Keys and Environment Variables"
 sidebarTitle: "Configuration"
-description: "Set up your AI Gateway key, optional integrations, model overrides, and workspace path to get ZilMate running in any environment."
+description: "Set up your AI Gateway key, optional integrations, model overrides, and workspace path to get ZilMate running in any environment correctly."
 ---
 
 ZilMate reads its configuration from environment variables, which you can set through the interactive setup wizard or by writing a `.env` file manually. This page documents every supported variable — required credentials, optional integrations, voice settings, model overrides, and feature flags — so you can configure ZilMate precisely for your environment.
@@ -49,7 +49,7 @@ If you prefer to manage configuration yourself, create a `.env` file at your pro
 </ParamField>
 
 <ParamField body="UPSTASH_REDIS_REST_URL" type="string">
-  The REST URL for your Upstash Redis database. When configured alongside `UPSTASH_REDIS_REST_TOKEN`, chat sessions, memory, scratchpads, and job state are persisted in Redis instead of the local `.zilo-manager/` directory. Required for multi-instance deployments.
+  The REST URL for your Upstash Redis database. When configured alongside `UPSTASH_REDIS_REST_TOKEN`, chat sessions, memory, scratchpads, and job state are persisted in Redis instead of the local workspace directory. Required for multi-instance deployments.
 </ParamField>
 
 <ParamField body="UPSTASH_REDIS_REST_TOKEN" type="string">
@@ -130,6 +130,14 @@ ZilMate assigns a default model to each agent role. Override these to use a diff
 
 ---
 
+## Webhook server
+
+<ParamField body="ZILMATE_WEBHOOK_PORT" type="number" default="8787">
+  The local port on which the ZilMate webhook server listens when using `zilmate jobs listen` or trigger listeners in development. Defaults to `8787`. Change this if the port is already in use on your machine. Not required in production environments where a public URL is configured via `ZILMATE_PUBLIC_JOB_WEBHOOK_URL`.
+</ParamField>
+
+---
+
 ## Feature flags
 
 <ParamField body="ZILMATE_JOBS_ENABLED" type="boolean" default="false">
@@ -187,6 +195,9 @@ ZILMATE_CAMERA_DEVICE=
 # ── File system ───────────────────────────────────────────────────────────────
 ZILMATE_FILE_ROOTS=
 ZILMATE_WORKSPACE=
+
+# ── Webhook server ────────────────────────────────────────────────────────────
+ZILMATE_WEBHOOK_PORT=8787
 
 # ── Model overrides ───────────────────────────────────────────────────────────
 ZILO_MANAGER_MODEL=minimax/minimax-m3

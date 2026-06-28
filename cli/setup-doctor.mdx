@@ -1,10 +1,10 @@
 ---
 title: "zilmate setup and doctor: Configure and Diagnose ZilMate"
-sidebarTitle: "setup / doctor"
+sidebarTitle: "Setup / Doctor"
 description: "Run zilmate setup to configure API keys interactively, then zilmate doctor to verify all services are healthy and credentials are working."
 ---
 
-Before you run any ZilMate command, you need at minimum one credential: your AI Gateway API key. `zilmate setup` walks you through every configuration option in a single guided session and writes the result to a merge-safe `.env` file. Once configured, `zilmate doctor` verifies that every service you've enabled is reachable and healthy.
+Before you run any ZilMate command, you need at minimum one credential: your AI Gateway API key. `zilmate setup` walks you through every configuration option in a single guided session and writes the result to a merge-safe `.env` file. Once configured, `zilmate doctor` verifies that every service you have enabled is reachable and healthy.
 
 ---
 
@@ -23,7 +23,7 @@ Before you run any ZilMate command, you need at minimum one credential: your AI 
     Enter your `AI_GATEWAY_API_KEY` when prompted. This is the only credential required for basic chat.
   </Step>
   <Step title="Configure optional integrations">
-    The wizard then offers to set up the following optional services — skip any you don't need:
+    The wizard offers to set up the following optional services — skip any you don't need:
 
     | Integration | Environment Variable(s) |
     |---|---|
@@ -32,6 +32,9 @@ Before you run any ZilMate command, you need at minimum one credential: your AI 
     | Hosted job scheduler (QStash) | `UPSTASH_QSTASH_TOKEN`, `ZILMATE_PUBLIC_JOB_WEBHOOK_URL` |
     | External app tools (Composio) | `COMPOSIO_API_KEY` |
     | Web research (Tavily) | `TAVILY_API_KEY` |
+    | Cloud storage (AWS S3) | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
+    | Cloud storage (GCS) | `GCS_PROJECT_ID`, `GCS_KEY_FILENAME` |
+    | Cloud storage (Vercel Blob) | `BLOB_READ_WRITE_TOKEN` |
 
   </Step>
   <Step title="Review the saved .env">
@@ -57,20 +60,28 @@ zilmate setup --yes --ai-gateway-key <key> \
   --qstash-token <token> \
   --job-webhook-url https://example.com/api/zilmate/jobs
 
-# With voice
+# With voice (Deepgram)
 zilmate setup --yes --ai-gateway-key <key> \
   --voice-enabled true \
-  --deepgram-key <key>
+  --deepgram-key <key> \
+  --voice-listen-model flux-general-en \
+  --voice-tts-model aura-2-thalia-en
 
 # With Composio and Tavily
 zilmate setup --yes --ai-gateway-key <key> \
   --composio-key <key> \
   --tavily-key <key>
 
-# With file roots and screenshot model
+# With file access roots and screenshot model
 zilmate setup --yes --ai-gateway-key <key> \
-  --file-roots "C:\Users\me\Documents,C:\work" \
+  --file-roots "/home/me/projects,/home/me/documents" \
   --screenshot-model google/gemini-3.1-flash-lite
+
+# With camera support (installs cloudflared for tunnel support)
+zilmate setup --yes --ai-gateway-key <key> \
+  --install-camera-deps true \
+  --camera-device "video=Integrated Camera" \
+  --install-cloudflare-deps true
 ```
 
 ### Full flag reference
@@ -78,6 +89,8 @@ zilmate setup --yes --ai-gateway-key <key> \
 | Flag | Description |
 |---|---|
 | `--yes` / `-y` | Non-interactive mode; skip all prompts |
+| `--path <file>` / `-p` | Write to a specific `.env` path instead of the default |
+| `--force` / `-f` | Skip the overwrite confirmation when the file already exists |
 | `--ai-gateway-key <key>` | AI Gateway API key (required for all AI features) |
 | `--composio-key <key>` | Composio API key for external app tools |
 | `--tavily-key <key>` | Tavily API key for web research |
@@ -90,12 +103,21 @@ zilmate setup --yes --ai-gateway-key <key> \
 | `--trigger-workflows-enabled <true\|false>` | Enable Composio trigger-to-job workflows |
 | `--deepgram-key <key>` | Deepgram API key for real-time voice |
 | `--voice-enabled <true\|false>` | Enable or disable real-time voice |
+| `--voice-listen-model <model>` | Deepgram STT model, e.g. `flux-general-en` or `flux-general-multi` |
+| `--voice-tts-model <model>` | Deepgram Aura TTS model, e.g. `aura-2-thalia-en` |
+| `--voice-language <language>` | Voice language code, e.g. `en` or `en-US` |
 | `--voice-input-device <device>` | Terminal microphone device override for ffmpeg |
 | `--screenshot-model <model>` | Vision model for screenshot and camera analysis |
 | `--file-roots <roots>` | Comma-separated safe roots for the local files agent |
 | `--camera-device <device>` | Camera device override, e.g. `"video=Integrated Camera"` |
-| `--path <file>` / `-p` | Write to a specific `.env` path instead of the default |
-| `--force` / `-f` | Skip the overwrite confirmation when the file already exists |
+| `--install-camera-deps <true\|false>` | Install ffmpeg for camera capture when missing |
+| `--install-cloudflare-deps <true\|false>` | Install cloudflared for job tunnels when missing |
+| `--aws-access-key <key>` | AWS Access Key ID for S3 storage |
+| `--aws-secret-key <key>` | AWS Secret Access Key for S3 storage |
+| `--aws-region <region>` | AWS region for S3 storage, e.g. `us-east-1` |
+| `--gcs-project-id <id>` | Google Cloud Storage project ID |
+| `--gcs-key-file <path>` | Path to the GCS credentials JSON key file |
+| `--vercel-blob-token <token>` | Vercel Blob read/write token |
 
 ---
 
@@ -125,8 +147,9 @@ The checks include:
 | Deepgram | API key authenticates against the Deepgram endpoint |
 | Composio | API key is valid and the local user session is registered |
 | Tavily | API key authenticates against the Tavily search endpoint |
+| Node.js | Version meets the minimum requirement (≥ 20.0.0) |
 
-Doctor also reports model availability — so you can confirm which models your gateway exposes before running tasks.
+Doctor also reports model availability, so you can confirm which models your Gateway exposes before running tasks.
 
 ### Flags
 
@@ -146,6 +169,7 @@ Doctor also reports model availability — so you can confirm which models your 
 ⚠️  Deepgram            key set but voice disabled — set ZILMATE_VOICE_ENABLED=true
 ✅  Composio            user registered, 3 apps connected
 ✅  Tavily              key valid
+✅  Node.js             v22.4.0 (meets ≥20.0.0 requirement)
 ```
 
 Exit code is `0` when all critical services pass and non-zero when any critical service reports an error.

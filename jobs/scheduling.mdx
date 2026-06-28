@@ -1,5 +1,5 @@
 ---
-title: "Scheduling Recurring AI Jobs with Cron and QStash"
+title: "Scheduling Recurring AI Jobs with Cron and QStash Delivery"
 sidebarTitle: "Scheduling"
 description: "Create cron-scheduled AI jobs in ZilMate using createJob(). Run them locally with the jobs worker or offload delivery to Upstash QStash for production."
 ---
@@ -50,7 +50,7 @@ const job = await zilmate.createJob({
 console.log('Scheduled job created:', job.id);
 ```
 
-ZilMate persists the job to `zilo-jobs.db` in your `ZILMATE_WORKSPACE`. The job's initial status is `pending` and it will execute on the next tick that matches its cron expression.
+ZilMate persists the job to `zilo-jobs.db` in your `ZILMATE_WORKSPACE`. The job's initial status is `queued` and it will execute on the next tick that matches its cron expression.
 
 ## Running the local worker
 
@@ -95,7 +95,7 @@ After a job runs, inspect its current state and execution output:
 ```ts
 // Retrieve the latest job record
 const status = (await zilmate.getJob(job.id)).status;
-console.log('Job status:', status); // "completed" | "failed" | "running" | "pending"
+console.log('Job status:', status); // "queued" | "running" | "succeeded" | "failed" | "cancelled"
 
 // Retrieve all log entries for the job
 const logs = await zilmate.getJobLogs(job.id);

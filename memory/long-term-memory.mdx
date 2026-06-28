@@ -1,7 +1,7 @@
 ---
 title: "Long-Term Memory: Persist Knowledge Across Agent Sessions"
 sidebarTitle: "Long-Term Memory"
-description: "Store and retrieve text memories across sessions using ZilMate's remember() and recall() API. Backed by Upstash Redis or local JSON for single-node deployments."
+description: "Store and query knowledge across agent runs using ZilMate's remember() and recall() API. Zero-config locally; switch to Upstash Redis for production scale."
 ---
 
 ZilMate gives every agent session persistent long-term memory — facts, preferences, and decisions — that survive across independent runs. Whether you're tracking user preferences in a Next.js app or preserving research findings between automation scripts, the memory API gives your agents a durable knowledge foundation without any external infrastructure required to get started.
@@ -56,6 +56,10 @@ Each memory object returned by `recall()` and `listMemories()` conforms to the f
 
 <ResponseField name="createdAt" type="string">
   ISO 8601 timestamp recording when the memory was created.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp recording when the memory was last modified.
 </ResponseField>
 
 ## TypeScript Examples

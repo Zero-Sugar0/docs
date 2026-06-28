@@ -134,7 +134,9 @@ Agents use SQLite tools to inspect your local job store, query application datab
 ## Examples
 
 ```ts
-import { zilmate } from 'zilmate'
+import { createZilMate } from 'zilmate/server'
+
+const zilmate = createZilMate({ sessionId: 'sysops-session' })
 
 // Port inspection
 const ports = await zilmate.manager({

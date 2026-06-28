@@ -1,10 +1,10 @@
 ---
 title: "Semantic Approval Firewall: Human-in-the-Loop Safety"
 sidebarTitle: "Safety Firewall"
-description: "ZilMate's semantic approval firewall blocks dangerous operations with regex heuristics and LLM analysis. Configure confirmation handlers for server-side deployments."
+description: "ZilMate's safety firewall blocks dangerous operations using regex heuristics and LLM analysis. Configure a ConfirmationHandler for server-side deployments."
 ---
 
-ZilMate includes a multi-layer safety system that prevents destructive operations without explicit approval — both in CLI interactive mode and in SDK server contexts. Before any tool that interacts with the filesystem or the host shell executes, the command passes through `approvals.ts`, a semantic approval firewall that applies layered analysis to determine whether the operation is safe to run. If at any layer the operation is flagged, ZilMate blocks it and marks it as `needs_confirmation` until a human approves.
+ZilMate includes a multi-layer safety system that prevents destructive operations without explicit approval — both in CLI interactive mode and in SDK server contexts. Before any tool that interacts with the filesystem or the host shell executes, the command passes through a semantic approval firewall that applies layered analysis to determine whether the operation is safe to run. If at any layer the operation is flagged, ZilMate blocks it and marks it as `needs_confirmation` until a human approves.
 
 ## Three-Layer Firewall
 

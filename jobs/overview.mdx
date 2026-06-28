@@ -1,7 +1,7 @@
 ---
-title: "Background Jobs in ZilMate: Scheduling AI Tasks"
+title: "Background Jobs in ZilMate: Queue and Schedule AI Tasks"
 sidebarTitle: "Overview"
-description: "ZilMate's job system lets you queue, schedule, and monitor AI-powered background tasks. Jobs persist in SQLite and execute via local worker or QStash webhooks."
+description: "Queue, schedule, and monitor AI-powered background tasks with ZilMate's job system. Jobs persist in SQLite and execute via local worker or QStash webhooks."
 ---
 
 ZilMate's job system gives any agent task a durable, retryable execution lifecycle — schedule work by cron, run it on demand, and retrieve logs when it finishes. Whether you need a weekly GitHub summary, a nightly analysis run, or an on-demand data digest, the job system queues and tracks every execution from creation through completion.
@@ -11,17 +11,14 @@ ZilMate's job system gives any agent task a durable, retryable execution lifecyc
 Every job moves through a fixed sequence of states:
 
 <Steps>
-  <Step title="Created">
-    You call `createJob()`. ZilMate writes the job record to SQLite and assigns it a unique ID.
-  </Step>
   <Step title="Queued">
-    The job is waiting for its scheduled time to arrive, or is ready for immediate execution.
+    You call `createJob()`. ZilMate writes the job record and assigns it a unique ID. Its initial status is `queued`.
   </Step>
   <Step title="Running">
-    The local worker or a QStash webhook delivery picks up the job and begins executing the task.
+    The local worker or a QStash webhook delivery picks up the job and begins executing the task. Status transitions to `running`.
   </Step>
-  <Step title="Completed or Failed">
-    ZilMate writes the final status and appends a log entry. If the job fails and `maxAttempts` allows, it re-queues for a retry.
+  <Step title="Succeeded or Failed">
+    ZilMate writes the final status (`succeeded` or `failed`) and appends a log entry. If the job fails and `maxAttempts` allows, it re-queues for a retry.
   </Step>
 </Steps>
 
@@ -135,23 +132,63 @@ Cancels a pending job, preventing future execution.
   The natural-language instruction the agent executes.
 </ResponseField>
 
-<ResponseField name="schedule" type="string">
-  The cron expression defining when the job runs, if any.
+<ResponseField name="status" type='"queued" | "running" | "succeeded" | "failed" | "cancelled"'>
+  The current lifecycle state of the job.
 </ResponseField>
 
-<ResponseField name="status" type='"pending" | "running" | "completed" | "failed"'>
-  The current lifecycle state of the job.
+<ResponseField name="schedule" type="string">
+  The cron expression defining when the job runs, if any.
 </ResponseField>
 
 <ResponseField name="maxAttempts" type="number">
   The maximum number of retry attempts configured for this job.
 </ResponseField>
 
+<ResponseField name="attempts" type="number">
+  The number of execution attempts made so far.
+</ResponseField>
+
 <ResponseField name="createdAt" type="string">
   ISO 8601 timestamp of when the job was created.
 </ResponseField>
 
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of when the job record was last updated.
+</ResponseField>
+
+<ResponseField name="runAt" type="string">
+  ISO 8601 timestamp of when the job is scheduled to run next, if set explicitly.
+</ResponseField>
+
+<ResponseField name="nextRunAt" type="string">
+  ISO 8601 timestamp of the next scheduled execution derived from the cron expression.
+</ResponseField>
+
+<ResponseField name="lastRunAt" type="string">
+  ISO 8601 timestamp of the most recent execution attempt.
+</ResponseField>
+
+<ResponseField name="completedAt" type="string">
+  ISO 8601 timestamp of when the job reached a terminal state (`succeeded` or `failed`).
+</ResponseField>
+
+<ResponseField name="result" type="string">
+  The agent's output text from the most recent successful execution, if available.
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  The error message from the most recent failed execution, if available.
+</ResponseField>
+
+<ResponseField name="qstashScheduleId" type="string">
+  The QStash schedule ID assigned when the job is registered for cloud-hosted cron delivery.
+</ResponseField>
+
 ### `JobLog`
+
+<ResponseField name="id" type="string">
+  Unique identifier for this log entry.
+</ResponseField>
 
 <ResponseField name="jobId" type="string">
   The ID of the job this log entry belongs to.
@@ -161,11 +198,11 @@ Cancels a pending job, preventing future execution.
   The log message emitted during execution.
 </ResponseField>
 
-<ResponseField name="level" type="string">
-  Severity level of the log entry (e.g. `info`, `error`).
+<ResponseField name="level" type='"info" | "progress" | "error" | "result"'>
+  Severity level of the log entry.
 </ResponseField>
 
-<ResponseField name="timestamp" type="string">
+<ResponseField name="createdAt" type="string">
   ISO 8601 timestamp of when this log entry was written.
 </ResponseField>
 
@@ -185,7 +222,7 @@ const job = await zilmate.createJob({
   maxAttempts: 3,
 });
 
-console.log('Job created:', job.id, '— status:', job.status);
+console.log('Job created:', job.id, '— status:', job.status); // 'queued'
 
 // After the job runs, retrieve its logs
 const logs = await zilmate.getJobLogs(job.id);

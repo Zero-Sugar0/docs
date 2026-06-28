@@ -1,7 +1,7 @@
 ---
-title: "zilmate models: Select AI Models for Each Agent"
-sidebarTitle: "models"
-description: "List available AI models and assign specific models to ZilMate agents using zilmate models. Selections persist to workspace config and apply on every run."
+title: "zilmate models: Browse and Assign AI Models to Agents"
+sidebarTitle: "Models"
+description: "Browse the AI Gateway model catalogue and assign specific models to ZilMate agent targets. Selections persist to workspace config and apply on every run."
 ---
 
 ZilMate routes different task types to different agent targets, and each target can use a different AI model. `zilmate models` opens an interactive model browser that lists every model available from your AI Gateway, lets you assign a model to an agent target, and persists your selections so they apply automatically on every future run.
@@ -16,7 +16,7 @@ Open the interactive model browser:
 zilmate models
 ```
 
-The browser lists all models available through your configured AI Gateway. Use the filter flags to narrow the list when you know which provider you want:
+Use the filter flags to narrow the list when you know which provider you want:
 
 ```bash
 # Show only Anthropic models
@@ -25,10 +25,10 @@ zilmate models --provider anthropic
 # Show only Google / Gemini models
 zilmate models --provider gemini
 
-# Show 50 models per page
-zilmate models --limit 50
+# Show OpenAI models, 50 per page
+zilmate models --provider openai --limit 50
 
-# Jump to page 2
+# Jump to page 2 of the full catalogue
 zilmate models --page 2
 ```
 
@@ -42,22 +42,47 @@ zilmate models --page 2
 
 ---
 
-## Assigning a model to an agent target
+## Agent key → environment variable mapping
 
-When you select a model in the browser, you are prompted to choose an agent target. The selection is saved to `~/Downloads/ZilMate/config/models.json` (or the path set by `ZILMATE_WORKSPACE`) and takes effect immediately on the next run.
+When you select a model in the browser, you choose an agent target. The selection is saved to `~/Downloads/ZilMate/config/models.json` (or the path set by `ZILMATE_WORKSPACE`) and applied on the next run. You can also set any of these variables directly in your `.env` to override the saved selection without opening the browser.
 
-### Agent targets and their environment variable overrides
+### Core agent targets
 
-| Agent target | Environment variable | Description |
-|---|---|---|
-| `manager` | `ZILO_MANAGER_MODEL` | Main orchestrator and chat agent |
-| `help` | `ZILO_HELP_MODEL` | Quick help and troubleshooting agent |
-| `post` | `ZILO_POST_MODEL` | Social copy and caption generation |
-| `image` (provider) | `ZILO_IMAGE_DEFAULT_PROVIDER` | Default image provider: `openai` or `gemini` |
-| `image` (OpenAI model) | `ZILO_IMAGE_OPENAI_MODEL` | OpenAI image model, e.g. `openai/gpt-image-2` |
-| `image` (Gemini model) | `ZILO_IMAGE_GEMINI_MODEL` | Gemini image model, e.g. `google/gemini-3-pro-image` |
+| Agent key | Environment variable | Description | Default |
+|---|---|---|---|
+| `manager` | `ZILO_MANAGER_MODEL` | Main orchestrator, chat, and research agent | `minimax/minimax-m3` |
+| `help` | `ZILO_HELP_MODEL` | Quick help and troubleshooting agent | `ZILO_MANAGER_MODEL` fallback |
+| `post` | `ZILO_POST_MODEL` | Social copy and caption generation | `ZILO_MANAGER_MODEL` fallback |
+| `coding` | `ZILO_CODING_MODEL` | Coding agent, app builder, and QA integration | `ZILO_MANAGER_MODEL` fallback |
 
-You can also set these directly in your `.env` to override the saved selection without using the browser.
+### Image generation targets
+
+| Agent key | Environment variable | Description | Default |
+|---|---|---|---|
+| `image` (provider) | `ZILO_IMAGE_DEFAULT_PROVIDER` | Default image provider: `openai` or `gemini` | `openai` |
+| `image` (OpenAI model) | `ZILO_IMAGE_OPENAI_MODEL` | OpenAI image model | `openai/gpt-image-2` |
+| `image` (Gemini model) | `ZILO_IMAGE_GEMINI_MODEL` | Gemini image model | `google/gemini-3.1-flash-image` |
+
+### Vision and desktop targets
+
+| Agent key | Environment variable | Description | Default |
+|---|---|---|---|
+| `screenshotVision` | `ZILMATE_SCREENSHOT_MODEL` | Vision model for screenshot and camera analysis | `google/gemini-3.1-flash-lite` |
+
+### Swarm department targets
+
+Each department in the Digital Corporation swarm can use its own model. All departments fall back to `ZILO_MANAGER_MODEL` when the department-specific variable is not set.
+
+| Department | Environment variable |
+|---|---|
+| Strategy & Planning | `ZILMATE_DEPT_STRATEGY_MODEL` |
+| Software Engineering | `ZILMATE_DEPT_ENGINEERING_MODEL` |
+| Growth & Marketing | `ZILMATE_DEPT_GROWTH_MODEL` |
+| General Operations | `ZILMATE_DEPT_OPERATIONS_MODEL` |
+| Data Analytics | `ZILMATE_DEPT_DATA_MODEL` |
+| Security & Audits | `ZILMATE_DEPT_SECURITY_MODEL` |
+| Revenue & Finance | `ZILMATE_DEPT_REVENUE_MODEL` |
+| Development (internal) | `ZILMATE_DEPT_DEVELOPMENT_MODEL` |
 
 ---
 
@@ -69,7 +94,26 @@ Inside a `zilmate talk` session, type `/model pick` to open the same model brows
 /model pick
 ```
 
-Changes take effect for the remainder of your current session and are also saved to the workspace config.
+Changes take effect for the remainder of your current session and are also saved to the workspace config file.
+
+---
+
+## `.env` example
+
+You can set all model overrides directly in `.env` without using the browser:
+
+```env
+ZILO_MANAGER_MODEL=anthropic/claude-sonnet-4
+ZILO_HELP_MODEL=alibaba/qwen3.7-plus
+ZILO_POST_MODEL=alibaba/qwen3.7-plus
+ZILO_CODING_MODEL=openai/gpt-4o
+ZILO_IMAGE_DEFAULT_PROVIDER=openai
+ZILO_IMAGE_OPENAI_MODEL=openai/gpt-image-2
+ZILO_IMAGE_GEMINI_MODEL=google/gemini-3-pro-image
+ZILMATE_SCREENSHOT_MODEL=google/gemini-3.1-flash-lite
+ZILMATE_DEPT_SECURITY_MODEL=anthropic/claude-sonnet-4
+ZILMATE_DEPT_ENGINEERING_MODEL=openai/gpt-4o
+```
 
 ---
 
@@ -83,13 +127,12 @@ import { applyStoredModelSelections, saveModelSelection } from 'zilmate/server';
 // Load any saved selections before running tasks
 await applyStoredModelSelections();
 
-// Save a new selection
+// Persist new selections to workspace config
 await saveModelSelection('manager', 'anthropic/claude-sonnet-4');
+await saveModelSelection('coding', 'openai/gpt-4o');
 await saveModelSelection('help', 'alibaba/qwen3.7-plus');
 ```
 
----
-
 <Tip>
-Match models to task requirements. Use a fast, low-latency model for `help` (where response speed matters most) and a more capable model for `manager` (where reasoning quality drives results). The defaults in `.env` are a reasonable starting point.
+Match models to task requirements. Use a fast, low-latency model for `help` — where response speed matters most — and a more capable reasoning model for `manager` and `coding`. The defaults in `.env` are a good starting point; tune from there as your usage patterns become clear.
 </Tip>

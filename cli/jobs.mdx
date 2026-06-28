@@ -1,7 +1,7 @@
 ---
 title: "zilmate jobs: Create, Schedule, and Monitor Background Tasks"
-sidebarTitle: "jobs"
-description: "Use zilmate jobs to create cron-scheduled AI tasks, run the local job worker, list job history, and monitor execution logs from the terminal."
+sidebarTitle: "Jobs"
+description: "Use zilmate jobs to create cron-scheduled AI tasks, run the local job worker, stream webhook triggers, and test QStash delivery locally with --tunnel."
 ---
 
 ZilMate's job system lets you queue AI tasks to run on a schedule or on demand — without keeping a chat session open. Jobs run locally via the `worker` command, or remotely via Upstash QStash when you need tasks to execute even when your machine is asleep. All job subcommands are available under `zilmate jobs`.
@@ -37,7 +37,7 @@ zilmate jobs create "Check for new GitHub notifications and log them" --schedule
 # Cron expression
 zilmate jobs create "Weekly revenue report" --schedule "cron:0 9 * * 1"
 
-# Run at a specific time
+# Run at a specific ISO 8601 time
 zilmate jobs create "Deploy staging to production" --schedule "daily" --run-at "2025-08-01T09:00:00Z"
 ```
 
@@ -82,7 +82,7 @@ Display all jobs with their status, last run time, and next scheduled run.
 zilmate jobs list
 ```
 
-Filter by status:
+Filter by status or limit the output:
 
 ```bash
 zilmate jobs list --status queued
@@ -117,7 +117,7 @@ Execute a specific job immediately, regardless of its schedule.
 zilmate jobs run job_abc123
 ```
 
-Use this to test a job after creating it, or to re-run a failed job manually.
+Use this to test a job right after creating it, or to re-run a failed job without waiting for the next scheduled window.
 
 ---
 
@@ -129,7 +129,7 @@ Print execution logs for a specific job.
 zilmate jobs logs job_abc123
 ```
 
-Logs include the agent's output, any tool calls made, and the final result or error.
+Logs include the agent's output, any tool calls made, and the final result or error message.
 
 ---
 
@@ -151,7 +151,7 @@ Start a local webhook server that receives job triggers from QStash. Use this du
 # Start the webhook server on the default port (8787)
 zilmate jobs listen
 
-# Start with a Cloudflare quick tunnel to expose a public URL automatically
+# Start with a Cloudflare quick tunnel to expose a public HTTPS URL automatically
 zilmate jobs listen --tunnel
 ```
 
@@ -162,8 +162,29 @@ zilmate jobs listen --tunnel
 | `-p, --port <number>` | Local webhook port (default: `8787`) |
 | `--tunnel` | Start a Cloudflare quick tunnel alongside the server (requires `cloudflared`) |
 
+#### How `--tunnel` works
+
+When you pass `--tunnel`, ZilMate spawns a `cloudflared` quick-tunnel process alongside the local webhook server. The tunnel provides a stable public HTTPS URL that you copy into `ZILMATE_PUBLIC_JOB_WEBHOOK_URL` and into your QStash endpoint configuration. QStash then delivers scheduled job triggers directly to your local machine — without needing a deployed server.
+
+```bash
+# Start the listener with a tunnel
+zilmate jobs listen --tunnel
+
+# Example output:
+# ✅  Webhook server running on http://localhost:8787
+# 🌐  Cloudflare tunnel active: https://random-name.trycloudflare.com
+# 📋  Set ZILMATE_PUBLIC_JOB_WEBHOOK_URL=https://random-name.trycloudflare.com
+```
+
+Copy the tunnel URL into your environment and point QStash at it:
+
+```bash
+# Update your .env with the tunnel URL
+zilmate setup --yes --job-webhook-url https://random-name.trycloudflare.com
+```
+
 <Tip>
-Use `zilmate jobs listen --tunnel` during local development. The tunnel creates a public HTTPS URL that you can paste into `ZILMATE_PUBLIC_JOB_WEBHOOK_URL`, so QStash can deliver webhooks to your local machine. Run `zilmate setup --install-cloudflare-deps true` if `cloudflared` is not yet installed.
+Run `zilmate setup --install-cloudflare-deps true` if `cloudflared` is not yet installed. ZilMate downloads the correct platform binary automatically.
 </Tip>
 
 ---
@@ -176,15 +197,53 @@ zilmate jobs create "Pull my open GitHub PRs, Notion tasks, and Slack DMs and wr
   --schedule "daily" \
   --run-at "2025-08-01T08:00:00Z"
 
-# 2. Check it was queued
+# 2. Confirm it was queued
 zilmate jobs list --status queued
 
-# 3. Run it immediately to test
+# 3. Run it immediately to verify the output
 zilmate jobs run job_abc123
 
-# 4. Review the output
+# 4. Review the execution output
 zilmate jobs logs job_abc123
 
 # 5. Start the local worker to process future scheduled runs
 zilmate jobs worker
+
+# 6. Cancel the job if you no longer need it
+zilmate jobs cancel job_abc123
 ```
+
+---
+
+## SDK equivalent
+
+The jobs system is fully accessible from the SDK for use in Next.js routes and server workers:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'worker-session' });
+
+// Create a scheduled job
+const job = await zilmate.createJob({
+  task: 'Weekly summary of GitHub PRs merged this week',
+  schedule: '0 9 * * 1',
+});
+
+// Execute any due jobs (use this in a background worker process)
+await zilmate.runDueJobs();
+
+// Expose a webhook route for QStash to call
+// app/api/jobs/webhook/route.ts
+export async function POST(req: Request) {
+  const body = await req.json();
+  const result = await zilmate.handleJobWebhook(body, process.env.ZILMATE_JOB_WEBHOOK_SECRET);
+  return Response.json({ ok: true, jobId: result.id });
+}
+```
+
+| CLI | SDK |
+|---|---|
+| `zilmate jobs create "<task>"` | `zilmate.createJob({ task, schedule })` |
+| `zilmate jobs worker` | `zilmate.runDueJobs()` |
+| `zilmate jobs listen` | Webhook route + `zilmate.handleJobWebhook()` |

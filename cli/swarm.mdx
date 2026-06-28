@@ -1,7 +1,7 @@
 ---
 title: "zilmate swarm: Launch Multi-Agent Business Workflows"
-sidebarTitle: "swarm"
-description: "zilmate swarm runs a full Digital Corporation workflow — the COO delegates your goal to 30+ specialist agents across departments to deliver a comprehensive result."
+sidebarTitle: "Swarm"
+description: "zilmate swarm routes a high-level goal to the Digital Corporation COO, who delegates across 30+ specialist agents to deliver a structured, comprehensive result."
 ---
 
 `zilmate swarm` is the most powerful CLI command in ZilMate. Hand it a high-level business goal, and it routes that goal to the Digital Corporation COO, who delegates across multiple specialist departments working in parallel. The result is a structured, comprehensive deliverable that no single agent could produce alone.
@@ -18,25 +18,33 @@ Pass a named session to preserve swarm state across related runs:
 zilmate swarm "<business goal>" --session my-swarm-session
 ```
 
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-s, --session <id>` | Swarm session ID for state persistence (default: `default`) |
+
 ---
 
 ## Examples
 
+The following goals illustrate the range of tasks the swarm handles well — each one requires coordination across multiple departments simultaneously.
+
 ```bash
-# Security audit with a remediation plan
-zilmate swarm "Audit our codebase for security vulnerabilities and produce a remediation plan"
+# Full security audit with a prioritised remediation plan
+zilmate swarm "Audit our codebase and dependencies for security vulnerabilities, classify findings by severity, and produce a remediation plan with code-level fix recommendations"
 
-# Competitive analysis and go-to-market strategy
-zilmate swarm "Research our top 3 competitors, analyze pricing, and draft a go-to-market strategy"
+# Competitor research and go-to-market strategy
+zilmate swarm "Research our top 3 SaaS competitors, compare pricing tiers and feature sets, identify our differentiated positioning, and draft a go-to-market strategy for Q3"
 
-# Full product launch workflow
-zilmate swarm "Build a landing page for our new product feature and publish to Vercel"
+# End-to-end product launch workflow
+zilmate swarm "Build a landing page for our new scheduling feature, write the copy, generate a hero image, and deploy it to Vercel — then draft the announcement post for LinkedIn"
 
-# Financial pipeline review
-zilmate swarm "Analyze last quarter's revenue data and generate a board-ready summary with recommendations"
+# Board-ready financial pipeline review
+zilmate swarm "Analyse last quarter's revenue data in our Notion workspace, identify top-performing channels, flag any anomalies, and generate a board-ready summary with charts and recommendations"
 
-# Operations audit
-zilmate swarm "Review our current CI/CD pipeline, identify bottlenecks, and propose an optimized workflow"
+# CI/CD pipeline optimisation audit
+zilmate swarm "Review our current GitHub Actions CI/CD configuration, benchmark build times, identify bottlenecks, propose an optimised pipeline, and estimate the time savings"
 ```
 
 ---
@@ -51,7 +59,7 @@ zilmate swarm "Review our current CI/CD pipeline, identify bottlenecks, and prop
     The Digital Corporation COO breaks the goal into department-level work packages and assigns each to the relevant department lead.
   </Step>
   <Step title="Department specialists collaborate">
-    Specialists within each department execute their tasks and communicate via a horizontal peer-to-peer messaging fabric called Joint War Rooms, where agents negotiate schemas and coordinate artifacts directly.
+    Specialists within each department execute their tasks and communicate via a horizontal peer-to-peer messaging fabric — agents negotiate schemas and coordinate artifacts directly without waiting for top-down round-trips.
   </Step>
   <Step title="Deliverable is compiled">
     Once all departments report their findings, the COO assembles the outputs into a single structured Markdown report with findings, recommendations, and any generated artifacts.
@@ -60,7 +68,7 @@ zilmate swarm "Review our current CI/CD pipeline, identify bottlenecks, and prop
 
 ### Departmental structure
 
-ZilMate's Digital Corporation organizes work across seven layers:
+ZilMate's Digital Corporation organises work across seven layers:
 
 ```
 💼 Supervisor Manager (CEO)
@@ -74,7 +82,7 @@ ZilMate's Digital Corporation organizes work across seven layers:
      └── 💰 Revenue & Finance Department
 ```
 
-Each department contains multiple specialist agents with dedicated toolkits, instructions, and escalation paths.
+Each department contains multiple specialist agents with dedicated toolkits, system prompts, and escalation paths. Each department model defaults to `ZILO_MANAGER_MODEL` but can be overridden with a department-specific environment variable (`ZILMATE_DEPT_SECURITY_MODEL`, `ZILMATE_DEPT_ENGINEERING_MODEL`, etc.).
 
 ---
 
@@ -85,7 +93,7 @@ Each department contains multiple specialist agents with dedicated toolkits, ins
 - **Executive summary** — top-level findings and recommendations
 - **Department findings** — detailed output from each department that contributed
 - **Artifacts** — any files, code, or documents generated during execution
-- **Next actions** — prioritized recommended steps
+- **Next actions** — prioritised recommended steps
 
 ---
 
@@ -94,9 +102,32 @@ Each department contains multiple specialist agents with dedicated toolkits, ins
 Swarm tasks are thorough — they can run for several minutes depending on the complexity of your goal. The CLI displays live department status updates as each specialist completes its work, so you always know which department is active and how far along the swarm is.
 
 <Warning>
-Swarm tasks consume more tokens and take longer than single-agent calls. For straightforward, focused requests, use `zilmate manager` instead.
+Swarm tasks consume significantly more tokens and take longer than single-agent calls. For straightforward, focused requests, use `zilmate manager` instead.
 </Warning>
 
 <Tip>
-Use `zilmate manager` for tasks that fit within a single domain — code review, drafting a document, answering a question. Use `zilmate swarm` when the goal genuinely spans multiple departments: strategy + engineering + marketing, for example.
+Use `zilmate manager` for tasks that fit within a single domain — code review, drafting a document, answering a question. Use `zilmate swarm` when the goal genuinely spans multiple departments: strategy + engineering + marketing working together, for example.
 </Tip>
+
+---
+
+## SDK equivalent
+
+The swarm is triggered automatically by the Manager when a goal is complex enough to warrant multi-department routing. You can invoke the same path programmatically:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'swarm-session-1' });
+
+const { text } = await zilmate.manager({
+  message:
+    'Audit our codebase for security vulnerabilities and produce a remediation plan',
+});
+
+console.log(text);
+```
+
+| CLI | SDK |
+|---|---|
+| `zilmate swarm "<goal>"` | `createZilMate().manager({ message })` with swarm routing |

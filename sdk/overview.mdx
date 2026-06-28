@@ -1,7 +1,7 @@
 ---
-title: "ZilMate SDK Overview and Factory Function"
+title: "ZilMate SDK: createZilMate() and Full Method Reference"
 sidebarTitle: "Overview"
-description: "Initialize a ZilMate session with createZilMate(). Covers sessionId, onProgress, confirm options, and the full method surface of the returned instance."
+description: "Initialize a ZilMate session with createZilMate(). Covers sessionId, onProgress, and confirm options, plus the complete agent and utility method surface."
 ---
 
 The ZilMate SDK gives you a programmable agent layer you can embed directly in Next.js App Router routes, Node.js workers, and automation scripts. Every capability available in the CLI — the Manager orchestrator, specialist subagents, long-term memory, background jobs, voice, and model selection — is accessible through a single factory function: `createZilMate()`, imported from `zilmate/server`.
@@ -130,6 +130,7 @@ import {
   research,
   image,
   applyStoredModelSelections,
+  saveModelSelection,
   buildSituationBrief,
   loadSessionHandoff,
   clearSessionApprovals,
@@ -143,7 +144,8 @@ import {
 | `post(input, options?)` | Standalone post/copywriter call. |
 | `research(input, options?)` | Standalone research call. |
 | `image(input)` | Standalone image generation call. Accepts `ZilMatePromptInput & ImageGenerationOptions`. |
-| `applyStoredModelSelections()` | Loads persisted model overrides from `models.json` and applies them before agent calls. |
+| `applyStoredModelSelections()` | Loads persisted model overrides from `models.json` and applies them to the process environment before agent calls. Call this once at startup in long-lived processes. |
+| `saveModelSelection(agentKey, modelId)` | Persists a model override for a named agent role to `models.json`. Accepts a `ModelRole` string (e.g. `'manager'`, `'coding'`) and a model ID string. |
 | `buildSituationBrief(sessionId)` | Builds a situation brief without a full `createZilMate()` instance. |
 | `loadSessionHandoff(sessionId)` | Loads a saved handoff by session ID. |
 | `clearSessionApprovals()` | Clears any cached approval decisions for the current session. |

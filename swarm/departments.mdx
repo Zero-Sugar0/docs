@@ -1,5 +1,5 @@
 ---
-title: "Swarm Departments: 30+ Specialist Agent Directory"
+title: "Swarm Departments: ZilMate's 30+ Specialist Agent Directory"
 sidebarTitle: "Departments"
 description: "Full directory of ZilMate's 30+ swarm specialists across six departments: strategy, engineering, development, growth, operations, and data intelligence."
 ---
@@ -109,4 +109,4 @@ Uncovers business insights from transactional data, packages executive briefings
 
 You never need to specify which agent to use. When you pass a business objective to `zilmate.manager()` or `zilmate swarm`, the COO analyzes the goal and automatically selects the most relevant specialists. Agents are instantiated only when needed and torn down after their sub-tasks complete, keeping token costs minimal.
 
-All specialists are defined in `registry.ts` and loaded dynamically at runtime. To add a custom specialist or modify an existing one, declare the configuration change in `registry.ts` and register the appropriate skills in the agent's instruction set. Directly executing capabilities outside their registered department containers violates the swarm's horizontal decentralization principles and will trigger architectural lint blocks during compilation.
+Specialists are loaded dynamically at runtime — only the agents required for your specific objective are instantiated. This keeps token usage lean and execution fast, regardless of how many total specialists exist in the swarm.

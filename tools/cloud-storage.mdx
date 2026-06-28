@@ -1,5 +1,5 @@
 ---
-title: "Cloud Storage Tools: S3, GCS, and Vercel Blob"
+title: "Cloud Storage Tools: S3, GCS, and Vercel Blob Storage"
 sidebarTitle: "Cloud Storage"
 description: "Upload, download, list, and delete files across AWS S3, Google Cloud Storage, and Vercel Blob from any ZilMate agent with built-in cloud storage tools."
 ---
@@ -178,7 +178,9 @@ ZilMate agents can read and write files to cloud storage providers without any m
 Agents automatically select the provider based on which credentials are present in your environment. If you have multiple providers configured, specify the provider explicitly in your message:
 
 ```ts
-import { zilmate } from 'zilmate'
+import { createZilMate } from 'zilmate/server'
+
+const zilmate = createZilMate({ sessionId: 'cloud-session' })
 
 // Upload a report to S3
 await zilmate.manager({

@@ -74,21 +74,32 @@ await session.close?.();
 
 ### Retrieving voice configuration
 
-Use `getVoiceConfig()` to inspect the resolved voice settings at runtime:
+Use `getVoiceConfig()` to inspect the resolved voice settings at runtime. The function is available as a named export from `zilmate/server` and can also be accessed on the session returned by `startVoiceSession`:
 
 ```ts
-const config = await zilmate.getVoiceConfig();
+import { getVoiceConfig } from 'zilmate/server'
+
+const config = getVoiceConfig()
 
 console.log(config.listenModel);   // e.g. 'flux-general-en'
+console.log(config.listenVersion); // e.g. 'v2'
 console.log(config.ttsModel);      // e.g. 'aura-2-thalia-en'
 console.log(config.language);      // e.g. 'en'
-console.log(config.barge_in);      // e.g. true
-console.log(config.playbackMode);  // e.g. 'stream'
+console.log(config.bargeIn);       // e.g. true
+console.log(config.configured);    // true if DEEPGRAM_API_KEY is set
 ```
 
 ### ZilMateVoiceConfig type
 
-The session and config methods resolve to a `ZilMateVoiceConfig` object with the following fields:
+`startVoiceSession()` and `getVoiceConfig()` both resolve to a `ZilMateVoiceConfig` object with the following fields:
+
+<ResponseField name="enabled" type="boolean">
+  Whether the voice layer is active. Reflects the `ZILMATE_VOICE_ENABLED` environment variable.
+</ResponseField>
+
+<ResponseField name="mode" type="string">
+  Voice pipeline mode. Currently always `agent` — the full bidirectional Deepgram agent wiring.
+</ResponseField>
 
 <ResponseField name="listenModel" type="string">
   The Deepgram speech-to-text model used to transcribe your speech (e.g. `flux-general-en`).
@@ -106,12 +117,16 @@ The session and config methods resolve to a `ZilMateVoiceConfig` object with the
   The primary language code for recognition and synthesis (e.g. `en`).
 </ResponseField>
 
-<ResponseField name="barge_in" type="boolean">
-  Whether the user can interrupt the agent mid-speech to speak again.
+<ResponseField name="languageHints" type="string[]">
+  Optional list of language hints for multi-language sessions. Populated from `ZILMATE_VOICE_LANGUAGE_HINTS`.
 </ResponseField>
 
-<ResponseField name="playbackMode" type="string">
-  How TTS audio is delivered — either `stream` (low-latency) or `buffer` (complete before playback).
+<ResponseField name="bargeIn" type="boolean">
+  Whether the user can interrupt the agent mid-speech to begin a new recognition cycle.
+</ResponseField>
+
+<ResponseField name="configured" type="boolean">
+  `true` when `DEEPGRAM_API_KEY` is present in the environment. Use this to gate voice UI components.
 </ResponseField>
 
 ---

@@ -1,10 +1,10 @@
 ---
-title: "ZilMate CLI: Command-Line AI Agent Interface"
+title: "ZilMate CLI: Terminal Interface for AI Agents"
 sidebarTitle: "Overview"
 description: "The zilmate CLI gives you an interactive shell, one-shot commands, and full access to swarm agents, memory, jobs, and voice from your terminal."
 ---
 
-The `zilmate` CLI is the fastest way to interact with ZilMate agents from your terminal. Run one-shot tasks, start persistent interactive sessions, and manage memory and jobs — all without writing a single line of code. Every feature available in the SDK is reachable from the command line.
+The `zilmate` CLI is the fastest way to interact with ZilMate agents from your terminal. Run one-shot tasks, start persistent interactive sessions, and manage memory and background jobs — all without writing a single line of code. Every capability available in the SDK is reachable from the command line.
 
 ## Installation
 
@@ -20,19 +20,19 @@ After installation, run the setup wizard to configure your credentials:
 zilmate setup
 ```
 
-To see all available commands at any time, run:
+To see all available commands at any time:
 
 ```bash
 zilmate --help
 ```
 
 <Note>
-Running `zilmate` with no arguments opens the status dashboard and guided launcher menu. If the AI Gateway key is missing, the launcher offers to walk you through setup before starting a chat.
+Running `zilmate` with no arguments opens the status dashboard and guided launcher menu. If the AI Gateway key is missing, the launcher walks you through setup before starting a chat session.
 </Note>
 
 ## Command Overview
 
-The table below lists every top-level command and what it does.
+The table below lists every top-level command group and what it does.
 
 | Command | Description |
 |---|---|
@@ -41,31 +41,47 @@ The table below lists every top-level command and what it does.
 | `zilmate talk` | Start a persistent interactive chat session with the Manager agent |
 | `zilmate manager "<task>"` | Run a one-shot task through the Manager agent and exit |
 | `zilmate swarm "<goal>"` | Launch a full Digital Corporation multi-agent swarm workflow |
-| `zilmate jobs create/worker/list` | Create cron-scheduled jobs, run the local worker, and list job history |
-| `zilmate memory remember/recall/list` | Store facts, search memories, and list all stored entries |
+| `zilmate jobs create/worker/list/run/logs/cancel/listen` | Create jobs, run the local worker, list history, and webhook-test with tunnels |
+| `zilmate remember/recall/forget` | Store facts, search memories, and delete entries |
+| `zilmate memory list` | List all stored memory entries |
 | `zilmate models` | Browse available AI models and assign them to agent targets |
 | `zilmate triggers listen` | Stream real-time Composio trigger events to the terminal |
 | `zilmate update` | Update the global CLI to the latest published version |
 
+## CLI ↔ SDK Parity
+
+Every CLI command maps to an SDK method you can call in Next.js routes, server workers, or automation scripts.
+
+| CLI | SDK equivalent |
+|---|---|
+| `zilmate talk` | `createZilMate().manager({ message })` |
+| `zilmate manager "<task>"` | `createZilMate().manager({ message })` |
+| `zilmate swarm "<goal>"` | Manager with swarm routing via `createZilMate().manager()` |
+| `zilmate remember "<text>"` | `zilmate.remember({ text, tags })` |
+| `zilmate recall "<query>"` | `zilmate.recall({ query, limit })` |
+| `zilmate jobs create "<task>"` | `zilmate.createJob({ task, schedule })` |
+| `zilmate jobs worker` | `zilmate.runDueJobs()` |
+| `/model pick` (in `talk`) | `saveModelSelection('manager', 'model-id')` |
+
 ## Command Pages
 
 <CardGroup cols={2}>
-  <Card title="setup / doctor" icon="wrench" href="/cli/setup-doctor">
+  <Card title="Setup / Doctor" icon="wrench" href="/cli/setup-doctor">
     Configure API keys interactively and verify every service is healthy.
   </Card>
-  <Card title="talk / manager" icon="comments" href="/cli/talk-manager">
+  <Card title="Talk / Manager" icon="comments" href="/cli/talk-manager">
     Persistent interactive chat and one-shot task execution.
   </Card>
-  <Card title="swarm" icon="sitemap" href="/cli/swarm">
+  <Card title="Swarm" icon="sitemap" href="/cli/swarm">
     Full Digital Corporation multi-agent workflows for complex business goals.
   </Card>
-  <Card title="jobs" icon="clock" href="/cli/jobs">
+  <Card title="Jobs" icon="clock" href="/cli/jobs">
     Create, schedule, run, and monitor background automation tasks.
   </Card>
-  <Card title="memory" icon="brain" href="/cli/memory">
+  <Card title="Memory" icon="brain" href="/cli/memory">
     Store facts, recall memories by semantic search, and manage entries.
   </Card>
-  <Card title="models" icon="microchip" href="/cli/models">
+  <Card title="Models" icon="microchip" href="/cli/models">
     Browse the AI Gateway model catalogue and assign models to agents.
   </Card>
 </CardGroup>
