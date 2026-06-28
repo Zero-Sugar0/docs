@@ -1,0 +1,25 @@
+---
+title: "Changelog"
+description: "Product updates and improvements to ZilMate."
+---
+
+Follow along here for the latest updates to ZilMate.
+
+<Update label="June 28, 2026" tags={["v1.10.2"]}>
+  ## v1.10.2 — Cleaner start-up and a roomier trace viewer
+
+  ### New features
+
+  - **Interactive swarm trace diagnostics.** The HTML trace report now ships with collapsible directory tree nodes (with auto-expand on query match), clickable KPI metric cards that filter traces in place, a chronological Gantt timeline with dotted tracking guides, and a one-click **Copy JSON** utility for any inspector panel. See [Swarm overview](/swarm/overview).
+
+  ### Updates
+
+  - **Pristine CLI start-up.** Running any `zilmate` command now opens straight to the ASCII welcome banner — no more `dotenv` injection counts or tip banners cluttering the first few lines. Environment loading is unchanged: local overrides still take precedence. Try it from any command in the [CLI reference](/cli/overview).
+  - **Fluid-grid trace layout.** Trace timelines, Gantt columns, and pre-formatted output now scale with screen height instead of being capped by fixed viewport limits, so large traces render edge-to-edge on big monitors.
+  - **Expanded inspector panels.** Raw JSON, [collaboration reports](/swarm/joint-war-rooms), and [wiki cards](/memory/corporate-wiki) no longer sit inside short scroll boxes — long outputs render in full as part of a single, natural page scroll.
+
+  ### Bug fixes
+
+  - Removed nested scrollbars in the trace inspector that made it hard to read or copy large payloads.
+  - Suppressed stray configuration output that occasionally printed above the start-up banner.
+</Update>
