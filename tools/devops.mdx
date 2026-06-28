@@ -1,0 +1,165 @@
+---
+title: "DevOps Tool Suite: Docker, Environments, and Local Setup"
+sidebarTitle: "DevOps Tools"
+description: "ZilMate's DevOps tools give agents the ability to manage Docker containers, read and write environment files, inspect processes, and run local infrastructure commands."
+---
+
+ZilMate agents automatically reach for DevOps tools when you ask them to set up services, manage containers, or configure local infrastructure. You don't wire anything up — describe the task in plain language and the Manager or swarm agent selects the right tool, runs it, and reports back. Write operations like stopping a container or modifying `.env` always pass through the [approval firewall](/swarm/safety-firewall) before they execute.
+
+## How agents use DevOps tools
+
+You never call DevOps tools directly from the SDK. They are registered on the Manager and on swarm agents at startup. When you send an infrastructure-related message, the agent reasons over the available tools and calls them in sequence.
+
+```ts
+import { zilmate } from 'zilmate'
+
+const result = await zilmate.manager({
+  message: 'Check if my Docker services are running and restart any that are stopped',
+})
+```
+
+The agent will call `listDockerContainers`, inspect the status of each one, then call `controlDockerContainer` with `action: "restart"` for any stopped container — requesting your approval before it does so.
+
+---
+
+## Docker
+
+<AccordionGroup>
+  <Accordion title="listDockerContainers — List all containers">
+    Lists all running and stopped Docker containers with their IDs, names, status, and port mappings. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `all` _(boolean, default `true`)_ — when `true`, includes stopped containers; when `false`, returns only running ones.
+
+    **Example agent prompt**
+    ```
+    Show me all my Docker containers and their current status.
+    ```
+  </Accordion>
+
+  <Accordion title="controlDockerContainer — Start, stop, restart, or kill">
+    Starts, stops, restarts, or hard-terminates (kills) a specified container. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `container` _(string)_ — the container ID or name.
+    - `action` _(enum)_ — one of `start`, `stop`, `restart`, or `kill`.
+
+    <Warning>
+      `stop`, `restart`, and `kill` are write operations. The agent will request your approval via the confirmation firewall before executing them.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="runDockerContainer — Start a new container">
+    Starts a new Docker container from an image with full support for port mappings, environment variables, volume mounts, restart policies, Docker networks, and memory limits. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `image` _(string)_ — the Docker image to run (e.g. `postgres:15-alpine`).
+    - `name` _(string, optional)_ — a unique name for the container.
+    - `ports` _(string[], optional)_ — port mappings (e.g. `["5432:5432"]`).
+    - `env` _(string[], optional)_ — environment variables (e.g. `["POSTGRES_PASSWORD=secret"]`).
+    - `volumes` _(string[], optional)_ — volume mappings.
+    - `restartPolicy` _(enum, optional)_ — `no`, `always`, `unless-stopped`, or `on-failure`.
+    - `network` _(string, optional)_ — Docker network to connect to.
+    - `autoRemove` _(boolean, default `false`)_ — append `--rm` to auto-remove the container on exit.
+    - `memoryLimit` _(string, optional)_ — memory ceiling (e.g. `"512m"`, `"1g"`).
+  </Accordion>
+
+  <Accordion title="getDockerContainerLogs — Retrieve container logs">
+    Retrieves `stdout` and `stderr` logs from a running or stopped container. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `container` _(string)_ — the container ID or name.
+    - `tail` _(number, default `100`)_ — number of lines to return from the end of the log (max 2000).
+  </Accordion>
+
+  <Accordion title="manageDockerCompose — Orchestrate multi-container apps">
+    Runs `docker compose` (or the legacy `docker-compose` binary) actions against a Compose file in your workspace. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `action` _(enum)_ — one of `up`, `down`, `build`, `restart`, `ps`, or `logs`.
+    - `composeFile` _(string, optional)_ — custom compose file name (e.g. `docker-compose.prod.yml`). Defaults to `docker-compose.yml`.
+    - `services` _(string[], optional)_ — limit the action to specific services (e.g. `["db", "redis"]`).
+
+    **Example agent prompt**
+    ```
+    Bring up my docker-compose.prod.yml stack, but only start the db and redis services.
+    ```
+  </Accordion>
+
+  <Accordion title="execDockerCommand — Run a command inside a container">
+    Executes a terminal command inside a running container using `docker exec`. Supports custom users and working directories. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `container` _(string)_ — the container ID or name.
+    - `command` _(string[])_ — the command and arguments to run (e.g. `["npm", "run", "db:migrate"]`).
+    - `user` _(string, optional)_ — username or UID to execute as (e.g. `"root"`).
+    - `workdir` _(string, optional)_ — working directory inside the container.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Environment management
+
+<AccordionGroup>
+  <Accordion title="validateEnv — Compare .env against .env.example">
+    Compares the keys in `.env` and `.env.example` at the workspace root. Returns three sets: keys missing from `.env`, keys present in `.env` but absent from `.env.example`, and keys present in both.
+
+    **Important:** this tool never exposes secret values — it only reads and compares key names.
+
+    <Note>
+      If your `.env` file contains keys that match the ZilMate safety blocklist (such as API keys or database credentials), the agent will not read their values without explicit approval through the confirmation firewall. Key names are always safe to inspect.
+    </Note>
+
+    **Example agent prompt**
+    ```
+    Check whether my .env is missing any keys that are defined in .env.example.
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Process management
+
+<AccordionGroup>
+  <Accordion title="listSystemProcesses — List running processes">
+    Lists active system processes with PIDs, names, CPU usage, and memory consumption. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `sortBy` _(enum, default `memory`)_ — sort by `cpu`, `memory`, or `pid`.
+    - `limit` _(number, default `30`)_ — maximum number of processes to return (max 500).
+    - `filterName` _(string, optional)_ — filter results by process name (case-insensitive).
+
+    **Example agent prompt**
+    ```
+    Which processes are consuming the most memory right now?
+    ```
+  </Accordion>
+
+  <Accordion title="killSystemProcess — Terminate a process">
+    Terminates a process by PID, name, or the port it is listening on. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `pid` _(number, optional)_ — process ID to kill.
+    - `name` _(string, optional)_ — process name to kill (kills all matching instances).
+    - `port` _(number, optional)_ — kill whichever process is listening on this port (e.g. `3000`).
+    - `force` _(boolean, default `true`)_ — send `SIGKILL` / force taskkill.
+
+    <Warning>
+      This is a write operation. The agent will request your approval before terminating any process.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Safety
+
+Write operations in the DevOps suite — stopping or restarting containers, running `docker compose down`, killing processes, and modifying `.env` — all route through ZilMate's [approval firewall](/swarm/safety-firewall). The agent pauses, describes exactly what it is about to do, and waits for your confirmation before it proceeds.
+
+The environment validation tool (`validateEnv`) is intentionally read-only by design: it compares key names only and never returns secret values. If you ask an agent to read the actual contents of a `.env` file, it will check the file's keys against the safety blocklist. Files containing secrets require approval before any values are surfaced.
+
+<Tip>
+  Pair DevOps tools with the SysOps suite to get a full picture of your local environment — check container status, then verify which ports are in use, all in a single agent message.
+</Tip>

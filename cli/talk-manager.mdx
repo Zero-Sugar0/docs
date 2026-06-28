@@ -1,0 +1,103 @@
+---
+title: "zilmate talk and manager: Interactive and One-Shot Tasks"
+sidebarTitle: "talk / manager"
+description: "Use zilmate talk for a persistent interactive chat session or zilmate manager for one-shot task execution routed through the Manager agent."
+---
+
+ZilMate gives you two modes for working with the Manager agent from the terminal. `zilmate talk` opens a full interactive session where you can have a back-and-forth conversation, switch models, manage jobs, and use voice. `zilmate manager` runs a single task and exits — perfect for shell scripts and CI pipelines.
+
+---
+
+## `zilmate talk`
+
+`zilmate talk` starts a persistent interactive chat session in your terminal. The Manager agent receives your messages, routes them to the appropriate specialist agents, and streams results back with a live spinner and progress display.
+
+```bash
+zilmate talk
+```
+
+To start a session with a specific session ID (for persistent memory and Composio state):
+
+```bash
+zilmate talk --session my-project-session
+```
+
+### How it works
+
+Type your message and press Enter. The Manager routes your request automatically — to a coding specialist, research agent, help agent, or any of the 30+ swarm agents — without any configuration on your part. Results are formatted as Markdown and rendered directly in the terminal.
+
+### Special session commands
+
+Inside an active `zilmate talk` session, you can use these slash commands:
+
+| Command | Description |
+|---|---|
+| `/model pick` | Open the model picker to change the active AI model |
+| `/memory` | Quick memory operations — remember, recall, and list |
+| `/jobs` | List and manage background jobs without leaving the session |
+| `/voice` | Launch a hands-free microphone cycle for voice input |
+| `/help` | Show available session commands and usage tips |
+
+### Voice mode inside talk
+
+If `ZILMATE_VOICE_ENABLED=true` is set in your `.env`, voice mode activates automatically. Type `/voice` inside the session to switch to a hands-free microphone cycle powered by Deepgram. The agent speaks responses back through your speaker using Deepgram Aura TTS.
+
+### Interactive safety features
+
+When the Manager or a specialist agent is about to perform a destructive or write-like action — such as updating a GitHub issue, posting to Slack, or modifying a file — ZilMate pauses and displays an interactive safety checklist. Navigate with arrow keys and toggle checkboxes to approve or reject each action before it executes.
+
+A bottom-pinned status card stays visible at all times as agent logs scroll above it, so you always know what the current agent is doing and how long it has been running.
+
+### Exiting
+
+Press `Ctrl+C` or type `exit` to end the session cleanly.
+
+---
+
+## `zilmate manager`
+
+`zilmate manager` sends a single task to the Manager agent, prints the formatted Markdown response, and exits. Use it anywhere you would run a shell command: automation scripts, CI jobs, cron tasks, or quick one-liners.
+
+```bash
+zilmate manager "<task>"
+```
+
+### Examples
+
+```bash
+# Summarize GitHub issues and suggest priorities
+zilmate manager "Summarize my open GitHub issues and suggest priorities"
+
+# Draft a weekly status update
+zilmate manager "Write a brief weekly status update based on recent repository activity"
+
+# Check the current project for potential security issues
+zilmate manager "Scan this project's dependencies for known vulnerabilities and list the critical ones"
+
+# Generate a cron schedule recommendation
+zilmate manager "Suggest a cron schedule for daily database backups that avoids peak hours in UTC+2"
+```
+
+### Using a persistent session
+
+Pass `--session` to attach the task to a named session so the agent has access to that session's Composio state and conversation context:
+
+```bash
+zilmate manager "What are my pending Notion action items?" --session work-session
+```
+
+### Using in shell scripts
+
+Because `zilmate manager` exits with code `0` on success and non-zero on failure, you can use it directly in scripts:
+
+```bash
+#!/bin/bash
+set -e
+
+SUMMARY=$(zilmate manager "Summarize the last 5 commits in one paragraph")
+echo "AI Summary: $SUMMARY"
+```
+
+<Note>
+For complex, multi-department tasks that need several specialist agents working in parallel, use `zilmate swarm` instead. Use `zilmate manager` for focused, single-domain requests.
+</Note>

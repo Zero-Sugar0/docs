@@ -1,0 +1,90 @@
+---
+title: "Semantic Approval Firewall: Human-in-the-Loop Safety"
+sidebarTitle: "Safety Firewall"
+description: "ZilMate's semantic approval firewall blocks dangerous operations with regex heuristics and LLM analysis. Configure confirmation handlers for server-side deployments."
+---
+
+ZilMate includes a multi-layer safety system that prevents destructive operations without explicit approval — both in CLI interactive mode and in SDK server contexts. Before any tool that interacts with the filesystem or the host shell executes, the command passes through `approvals.ts`, a semantic approval firewall that applies layered analysis to determine whether the operation is safe to run. If at any layer the operation is flagged, ZilMate blocks it and marks it as `needs_confirmation` until a human approves.
+
+## Three-Layer Firewall
+
+The firewall applies three sequential checks, from fastest to most thorough. An operation must clear all three layers before it executes.
+
+### Layer 1 — Fast Regex Heuristics
+
+The first layer instantly intercepts commands that match known-dangerous patterns. No LLM call is required — these are blocked the moment they appear.
+
+Examples of intercepted patterns:
+
+| Pattern | Reason |
+|---|---|
+| `rm -rf` | Recursive forced deletion |
+| `git clean -f` | Irreversible working-tree wipe |
+| `dd if=` | Direct disk write |
+| `transfer money` | Financial transaction trigger |
+| `revoke keys` | Credential destruction |
+
+If a command matches any regex heuristic, it is immediately flagged as `needs_confirmation` and held for human approval before any execution occurs.
+
+### Layer 2 — Semantic LLM Guard
+
+If a command passes the regex check but still represents a potential risk — for example, writing to a server host configuration file or force-stopping a critical background service — a low-latency LLM analyzes the operation's intent and likely impact.
+
+The LLM guard catches borderline operations that no static regex list could fully anticipate, such as ambiguously phrased shell commands or novel API calls with destructive side effects.
+
+### Layer 3 — Conservative Fallback
+
+If the LLM call fails or times out for any reason, the firewall does not default to permissive behavior. It defaults to a conservative regex block on the full set of known hazardous server terminal commands.
+
+<Note>
+  The fallback is always restrictive, never permissive. An LLM outage or network timeout cannot create a safety gap.
+</Note>
+
+## CLI Interactive Mode
+
+In CLI sessions, the firewall surfaces a safety checklist that you navigate with arrow keys. Each potentially dangerous action is listed with a checkbox, and you must explicitly approve each item before ZilMate proceeds. This makes it clear exactly what the agent intends to do and gives you full control before any irreversible step runs.
+
+## SDK Confirmation Handler
+
+In server-side deployments, there is no terminal for interactive prompts. You must provide a `ConfirmationHandler` when creating a ZilMate instance — otherwise any tool that requires approval will block by default.
+
+The `ConfirmationHandler` interface accepts a `request` object describing the pending operation and returns a Promise that resolves to `true` (approve) or `false` (deny):
+
+```ts
+import type { ConfirmationHandler } from 'zilmate/server';
+import { createZilMate } from 'zilmate/server';
+
+const confirm: ConfirmationHandler = async (request) => {
+  // In a web app: push the request to your UI and await a user click
+  // In a script: log the request and return a decision
+  console.log('Approval requested:', request.message);
+  return true; // replace with your actual approval logic
+};
+
+const zilmate = createZilMate({ confirm });
+```
+
+A typical web app pattern is to push `request` to a real-time UI component (for example, via a WebSocket or a server-sent event), wait for the user to click Approve or Deny, and resolve the Promise with their decision.
+
+<Warning>
+  In automated pipelines, always provide a `confirm` handler. If you omit it, any tool that requires confirmation — including file writes, shell commands, and API calls with side effects — will block by default and the task will stall.
+</Warning>
+
+## Sensitive File Blocklist
+
+Certain file categories are protected regardless of the operation's context. ZilMate will never read or modify the following without explicit approval:
+
+- `.env` files and any file containing environment variable definitions
+- API keys and access tokens
+- TLS certificates and private keys
+- Any file matching credential or secret naming patterns
+
+This protection applies in both CLI and SDK modes and cannot be bypassed by agent instructions.
+
+## Execution Integrity Guarantee
+
+ZilMate guarantees that the AI will never claim external state has changed without confirmed tool execution. If a tool is blocked by the firewall and no approval is granted, the agent reports the operation as pending — not as completed. This means you can trust the agent's output to reflect only what actually happened on your system.
+
+<Tip>
+  Pair the confirmation handler with the swarm's `pauseDepartment()` control to build layered oversight: pause high-risk departments, review their queued actions, then resume once you've confirmed the intended operations.
+</Tip>

@@ -1,0 +1,149 @@
+---
+title: "zilmate memory: Store and Recall Agent Knowledge"
+sidebarTitle: "memory"
+description: "The zilmate memory commands let you store facts, recall memories by semantic search, list all stored entries, and clear memory from your terminal."
+---
+
+ZilMate's long-term memory system lets agents remember facts, preferences, and context across sessions. Everything you store is available not just to the CLI, but also to SDK sessions that share the same `ZILMATE_USER_ID`. Memories are retrieved by semantic search — you query with natural language and ZilMate surfaces the most relevant matches.
+
+---
+
+## Storage
+
+By default, memories are stored locally under `.zilo-manager/` in your workspace directory. When Upstash Redis credentials are configured, ZilMate automatically uses Redis for cloud-backed, persistent storage that survives machine restarts and works across environments.
+
+<Tip>
+Memories stored via the CLI are accessible to SDK sessions using the same `ZILMATE_USER_ID`. Set that variable consistently across your environments to share a single memory store.
+</Tip>
+
+---
+
+## Subcommands
+
+### `zilmate memory remember "<text>"`
+
+Store a fact or preference in long-term memory.
+
+```bash
+zilmate memory remember "<text>"
+```
+
+Add optional tags to make memories easier to group and recall:
+
+```bash
+zilmate memory remember "User prefers pnpm and App Router" --tags prefs,tooling
+zilmate memory remember "Always format code responses with TypeScript, not JavaScript" --tags prefs,coding
+zilmate memory remember "The staging server URL is https://staging.example.com" --tags infra,staging
+```
+
+You can also use the shorthand `zilmate remember` directly:
+
+```bash
+zilmate remember "Use a warm but concise support tone" --tag prefs
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-t, --tag <tag...>` | One or more tags to attach to this memory entry |
+
+---
+
+### `zilmate memory recall "<query>"`
+
+Search long-term memory using natural language. ZilMate returns the top semantically matching entries.
+
+```bash
+zilmate memory recall "<query>"
+```
+
+**Examples:**
+
+```bash
+zilmate memory recall "package manager preferences"
+zilmate memory recall "staging environment details"
+zilmate memory recall "how should I format code"
+```
+
+You can also use the shorthand `zilmate recall` directly:
+
+```bash
+zilmate recall "support tone guidelines"
+zilmate recall support --limit 5
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-l, --limit <number>` | Maximum number of memories to return (default: `8`) |
+
+---
+
+### `zilmate memory list`
+
+List all stored memories with their IDs, content, and tags.
+
+```bash
+zilmate memory list
+```
+
+---
+
+### `zilmate forget <id>`
+
+Delete a specific memory entry by its ID.
+
+```bash
+zilmate forget mem_abc123
+```
+
+To delete all memories at once, use the `--all` flag:
+
+```bash
+zilmate forget --all
+```
+
+<Warning>
+`zilmate forget --all` permanently deletes every memory in your store. The CLI will prompt for confirmation before proceeding.
+</Warning>
+
+---
+
+## End-to-end example
+
+```bash
+# Store a few preferences
+zilmate memory remember "User prefers pnpm and App Router" --tags prefs,tooling
+zilmate memory remember "Always respond in British English" --tags prefs,language
+zilmate memory remember "Production database is PostgreSQL 16 on AWS RDS" --tags infra,db
+
+# Check what's stored
+zilmate memory list
+
+# Recall by topic
+zilmate memory recall "package manager preferences"
+# → Returns: "User prefers pnpm and App Router"
+
+# Remove a specific entry
+zilmate forget mem_abc123
+
+# Clear everything (with confirmation)
+zilmate forget --all
+```
+
+---
+
+## SDK equivalent
+
+The same memory store is accessible from the SDK:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'my-session' });
+
+await zilmate.remember({ text: 'User prefers pnpm and App Router', tags: ['prefs'] });
+const hits = await zilmate.recall({ query: 'package manager', limit: 5 });
+```

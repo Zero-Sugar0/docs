@@ -1,0 +1,143 @@
+---
+title: "Scheduling Recurring AI Jobs with Cron and QStash"
+sidebarTitle: "Scheduling"
+description: "Create cron-scheduled AI jobs in ZilMate using createJob(). Run them locally with the jobs worker or offload delivery to Upstash QStash for production."
+---
+
+ZilMate supports cron-based job scheduling so you can automate recurring AI tasks — weekly reports, daily digests, nightly analysis runs. Define a schedule once with `createJob()`, then let the local worker or QStash handle delivery on time, every time.
+
+<Note>
+  Jobs require `ZILMATE_JOBS_ENABLED=true` in your environment. Add it to your `.env` file before creating or running any scheduled jobs.
+</Note>
+
+## Cron syntax
+
+ZilMate uses standard 5-field cron expressions. Each field controls a unit of time:
+
+```
+┌─────────── minute (0–59)
+│  ┌──────── hour (0–23)
+│  │  ┌───── day of month (1–31)
+│  │  │  ┌── month (1–12)
+│  │  │  │  ┌─ day of week (0–7, Sunday = 0 or 7)
+│  │  │  │  │
+*  *  *  *  *
+```
+
+Common schedule examples:
+
+| Expression | Meaning |
+|---|---|
+| `0 9 * * 1` | Every Monday at 9 am |
+| `0 0 * * *` | Daily at midnight |
+| `*/15 * * * *` | Every 15 minutes |
+
+## Creating a scheduled job
+
+Call `createJob()` with a `task` string and a `schedule` cron expression. Set `maxAttempts` to allow retries on failure:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'scheduler-session' });
+
+const job = await zilmate.createJob({
+  task: 'Weekly summary of GitHub PRs and open issues',
+  schedule: '0 9 * * 1',
+  maxAttempts: 3,
+});
+
+console.log('Scheduled job created:', job.id);
+```
+
+ZilMate persists the job to `zilo-jobs.db` in your `ZILMATE_WORKSPACE`. The job's initial status is `pending` and it will execute on the next tick that matches its cron expression.
+
+## Running the local worker
+
+The local worker polls for due jobs and executes them on your machine. Start it from your terminal:
+
+```bash
+zilmate jobs worker
+```
+
+The worker runs continuously while your terminal is active. It checks for due jobs, executes them in order, and logs results. Use this mode during development and on long-running server machines.
+
+### Embedding in a serverless handler
+
+For environments where a persistent process is not practical — such as a Next.js API route or a serverless function — call `runDueJobs()` directly instead:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+export async function GET() {
+  const zilmate = createZilMate();
+  await zilmate.runDueJobs();
+  return Response.json({ ok: true });
+}
+```
+
+Invoke this endpoint on a schedule using a cron trigger from your hosting platform (Vercel Cron, Railway, etc.).
+
+## Registering with QStash
+
+For hosted environments where your local machine may be offline, register the job's cron schedule with Upstash QStash. QStash calls your webhook URL on schedule, triggering execution in the cloud.
+
+```ts
+await zilmate.registerQStashSchedule(job.id);
+```
+
+QStash reads the job's `schedule` field and begins delivering HTTP calls to `ZILMATE_PUBLIC_JOB_WEBHOOK_URL` at each due interval. See the [Webhooks guide](/jobs/webhooks) for the full setup, including environment variables and the Next.js webhook route.
+
+## Checking job status and logs
+
+After a job runs, inspect its current state and execution output:
+
+```ts
+// Retrieve the latest job record
+const status = (await zilmate.getJob(job.id)).status;
+console.log('Job status:', status); // "completed" | "failed" | "running" | "pending"
+
+// Retrieve all log entries for the job
+const logs = await zilmate.getJobLogs(job.id);
+logs.forEach((log) => console.log(`[${log.level}] ${log.message}`));
+```
+
+You can also check status from the CLI:
+
+```bash
+zilmate jobs status <job-id>
+zilmate jobs logs <job-id>
+```
+
+## Cancelling a job
+
+Stop a pending job before it executes by calling `cancelJob()`:
+
+```ts
+await zilmate.cancelJob(job.id);
+```
+
+Or use the CLI equivalent:
+
+```bash
+zilmate jobs cancel <job-id>
+```
+
+Cancellation prevents any future execution of the job. Already-running jobs are not interrupted.
+
+<Warning>
+  Cancelling a job is permanent. If you need the same task again in the future, create a new job with `createJob()`.
+</Warning>
+
+## Environment variable reference
+
+```env
+ZILMATE_JOBS_ENABLED=true
+UPSTASH_QSTASH_TOKEN=your_qstash_token
+ZILMATE_PUBLIC_JOB_WEBHOOK_URL=https://your-app.com/api/jobs/webhook
+ZILMATE_JOB_WEBHOOK_SECRET=your_webhook_secret
+```
+
+<Tip>
+  During local development you do not need QStash. Run `zilmate jobs worker` and leave `UPSTASH_QSTASH_TOKEN` unset. Add QStash credentials only when deploying to a hosted environment.
+</Tip>

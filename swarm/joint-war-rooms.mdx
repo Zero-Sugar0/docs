@@ -1,0 +1,123 @@
+---
+title: "Joint War Rooms: Peer-to-Peer Agent Collaboration"
+sidebarTitle: "Joint War Rooms"
+description: "ZilMate's Joint War Rooms enable direct peer-to-peer agent collaboration without manager overhead. Learn how P2P handoffs, wiki publishing, and autonomous loops work."
+---
+
+Joint War Rooms are ZilMate's active P2P bus — any specialist can directly invoke another specialist without routing through the COO. When an agent needs a specific deliverable from a peer (an API schema, a keyword brief, a security audit), it opens a Joint War Room, passes the task and shared context, and receives a structured Markdown report when the peer completes its work. This eliminates the context-switching overhead and token bloat that plague hub-and-spoke orchestration systems.
+
+## P2P Lifecycle
+
+Each Joint War Room follows a deterministic lifecycle from invocation to resolution:
+
+<Steps>
+  <Step title="Invoke the peer">
+    The calling agent invokes `collaborateWithPeer()` with the target specialist's key and a description of the sub-task.
+
+    ```ts
+    collaborateWithPeer({ peerKey: 'architect', task: 'Design the database schema for the payments module' });
+    ```
+  </Step>
+  <Step title="Sub-thread opens">
+    A new isolated sub-thread starts, instantiating the target specialist agent (for example, `architect`) with its full toolset and instruction set.
+  </Step>
+  <Step title="Specialist inherits shared context">
+    The specialist receives the calling agent's context payload — no COO mediation required. It has access to the same session state and Corporate Wiki.
+  </Step>
+  <Step title="Specialist runs tool loops and publishes artifacts">
+    The specialist executes its inner autonomous loop using its specialized tools (filesystem, code intelligence, web research, and so on). When it produces a high-value deliverable, it publishes it to the Corporate Wiki via `publishToCorporateWiki` so other agents can access it later.
+  </Step>
+  <Step title="Specialist returns a structured Markdown report">
+    Once the sub-task is complete, the specialist resolves the War Room and returns a compiled Markdown report directly to the calling agent's execution step.
+  </Step>
+  <Step title="Sub-thread closes; caller resumes">
+    The sub-thread tears down its compute resources. The calling agent resumes its own execution loop with the peer's deliverable integrated as input for the next step.
+  </Step>
+</Steps>
+
+## Common P2P Collaboration Pairs
+
+The swarm's topology defines the most productive peer-to-peer collaboration channels. Use these as a reference when designing custom workflows:
+
+| Initiating Department | Target Department | Typical Use |
+|---|---|---|
+| Strategy | Development | Hand off feature specs; receive implementation feasibility reports |
+| Development | Engineering | Request architecture reviews, security scans, or infrastructure guidance |
+| Growth | Strategy | Sync campaign experiments with product roadmap priorities |
+| Development | Data | Request analytics schemas or vector pipeline designs |
+| Operations | Development | Escalate billing incidents, auth failures, or compliance gaps for immediate fixes |
+
+## Autonomous Operational Loops
+
+Joint War Rooms compose into fully autonomous multi-agent loops for complex, long-running workflows.
+
+### Multi-Channel Growth Loop
+
+The Growth department uses a chained P2P sequence to take a keyword opportunity from research all the way to published social content:
+
+1. **SEO Expert** queries search databases, identifies high-intent keyword groups, and publishes a content spec to the Corporate Wiki.
+2. **SEO Expert** opens a War Room with **Content Writer**, passing the keyword spec as the task input.
+3. **Content Writer** drafts SEO-optimized articles, refines headers for readability, and produces social-media variant templates.
+4. **Content Writer** opens a War Room with **Video Producer**, passing the article's key points.
+5. **Video Producer** uses TTS voices and Remotion code pipelines to render a product-launch MP4.
+6. **Social Media Manager** retrieves the assets and publishes them to TikTok, YouTube, and Twitter via automated posting APIs.
+
+No human needs to coordinate hand-offs between these steps. Each agent triggers the next.
+
+### Sandbox Dev & Self-Healing Loop
+
+For software engineering tasks, ZilMate guarantees code correctness through a closed-loop compiler-integrated development pattern. The `executeSandboxDevLoop` tool drives the cycle:
+
+<Steps>
+  <Step title="Coder writes and applies a patch">
+    The Full-Stack Coder writes the implementation and submits the patch to the Sandbox Dev Loop.
+  </Step>
+  <Step title="Sandbox triggers build and tests">
+    The sandbox runs the TypeScript compiler and linter against the patched codebase.
+  </Step>
+  <Step title="Compiler returns diagnostics">
+    The compiler reports errors — for example, a linter violation and a type mismatch — with exact line numbers and error codes.
+  </Step>
+  <Step title="Coder self-heals the patch">
+    The coder receives the diagnostic payload and rewrites only the specific lines flagged, using type-correct parameters.
+  </Step>
+  <Step title="Re-compile until green">
+    The sandbox re-triggers compilation. Steps 3–4 repeat until the build succeeds and all tests pass.
+  </Step>
+  <Step title="QA Engineer receives clean workspace">
+    The sandbox yields the passing workspace and coverage reports to the QA Engineer for final validation.
+  </Step>
+</Steps>
+
+<Tip>
+  The self-healing loop runs entirely without human intervention. The coder iterates on compiler feedback autonomously until the code is clean, then hands off to QA.
+</Tip>
+
+## Pausing and Resuming Departments
+
+You can freeze a specific department at any point without halting the rest of the swarm. This is useful when you need to review intermediate deliverables before a department continues.
+
+**Pause a department**
+
+```ts
+pauseDepartment('growth');
+```
+
+`pauseDepartment()` writes a `PAUSED` state block into swarm control memory. If any agent attempts to trigger a specialist in that department, the coordinator suspends execution and waits for manual review.
+
+**Resume a department**
+
+```ts
+resumeDepartment('growth');
+```
+
+`resumeDepartment()` restores the department's state to `RUNNING` and resumes any queued sub-tasks seamlessly from where they stopped.
+
+## The Corporate Wiki — The Passive Complement
+
+The Corporate Wiki is the passive counterpart to Joint War Rooms. While War Rooms enable live, synchronous peer collaboration, the Wiki enables asynchronous knowledge sharing — agents publish completed deliverables and retrieve relevant context without requiring a live peer to be present.
+
+- Use **Joint War Rooms** (`collaborateWithPeer`) when an agent needs a real-time response from a specialist to continue its work.
+- Use the **Corporate Wiki** (`publishToCorporateWiki` / `queryCorporateWiki`) when an agent produces a deliverable that future agents should be able to discover and build on.
+
+Both mechanisms are active in every swarm session. Agents that produce high-value outputs during a War Room will typically publish those outputs to the Wiki before the sub-thread closes, making them available to the entire swarm going forward.

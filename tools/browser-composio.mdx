@@ -1,0 +1,158 @@
+---
+title: "Browser Automation and Composio App Integrations"
+sidebarTitle: "Browser & Composio"
+description: "ZilMate agents use Playwright for browser automation and Composio to connect to 100+ external apps including GitHub, Slack, Notion, Stripe, and Linear."
+---
+
+Beyond local tools, ZilMate agents can browse the web and interact with external services through Playwright browser automation and Composio's 100+ app connectors. Point an agent at a URL or name an external service, and it handles navigation, authentication, and execution without any manual wiring.
+
+---
+
+## Browser automation (Playwright)
+
+The `browser.tool.ts` integration gives agents a full programmatic browser. Agents use it automatically when you mention a web URL or describe a task that requires visiting a page.
+
+### Install Chromium
+
+Before agents can open browser sessions, install the Chromium runtime:
+
+```bash
+npx playwright install chromium
+```
+
+### What agents can do
+
+<CardGroup cols={2}>
+  <Card title="Navigate and extract" icon="globe">
+    Open any URL, wait for the page to load, and extract structured content — text, links, tables, and metadata.
+  </Card>
+  <Card title="Fill forms and click" icon="cursor-arrow-rays">
+    Interact with page elements: fill input fields, click buttons, submit forms, and handle modals.
+  </Card>
+  <Card title="Take screenshots" icon="camera">
+    Capture full-page or viewport screenshots and return them to context for visual analysis.
+  </Card>
+  <Card title="Run visual audits" icon="magnifying-glass">
+    Combine with `visual-audit.tool.ts` to analyze UI/UX patterns, layout, and accessibility from screenshots.
+  </Card>
+</CardGroup>
+
+### Example
+
+```ts
+import { zilmate } from 'zilmate'
+
+await zilmate.manager({
+  message: 'Go to my GitHub repo and summarize open PRs',
+})
+```
+
+The agent opens Chromium, navigates to your repository, extracts the list of open pull requests, and returns a structured summary.
+
+---
+
+## Web Intelligence (Firecrawl / Tavily)
+
+For deep crawling and multi-page research, agents use `web-intelligence.tool.ts` powered by Firecrawl and Tavily. This goes beyond single-page extraction to map site structures, crawl link graphs, and synthesize information across multiple pages.
+
+---
+
+## Web search (Tavily)
+
+The `web-search.tool.ts` integration gives agents access to real-time web search results via the Tavily API.
+
+### Setup
+
+```env
+TAVILY_API_KEY=your_tavily_api_key
+```
+
+Agents reach for web search automatically when a task requires current information that is not available locally — pricing, documentation, news, or anything time-sensitive.
+
+---
+
+## Composio app integrations
+
+Composio connects ZilMate agents to 100+ external apps through a unified authentication and execution layer. Configure your `COMPOSIO_API_KEY` once, connect your apps, and agents can act on them in any task.
+
+### Setup
+
+```env
+COMPOSIO_API_KEY=your_composio_api_key
+```
+
+### Supported apps (sample)
+
+<CardGroup cols={3}>
+  <Card title="GitHub" icon="github">Issues, PRs, repos, comments</Card>
+  <Card title="Slack" icon="slack">Messages, channels, threads</Card>
+  <Card title="Notion" icon="book-open">Pages, databases, blocks</Card>
+  <Card title="Linear" icon="circle-dot">Issues, projects, cycles</Card>
+  <Card title="Stripe" icon="credit-card">Customers, invoices, events</Card>
+  <Card title="Gmail" icon="envelope">Drafts, send, labels, search</Card>
+  <Card title="HubSpot" icon="chart-bar">Contacts, deals, companies</Card>
+  <Card title="And 93+ more" icon="plug">Search by task at runtime</Card>
+</CardGroup>
+
+### How Composio tools work
+
+<Steps>
+  <Step title="Discovery">
+    When you describe a task involving an external app, the agent searches Composio for available toolkits that match the task context. You don't need to specify which tools to use.
+  </Step>
+  <Step title="Authentication">
+    If a connection to the app is missing, Composio generates an OAuth link automatically. The agent returns that URL to you so you can authorize the connection in your browser — no manual token management.
+  </Step>
+  <Step title="Execution">
+    Once connected, the agent derives the correct parameters from the Composio app schema and executes the action. Results are returned to the agent's context for the next reasoning step.
+  </Step>
+</Steps>
+
+### Auth flow
+
+If an agent needs a Composio connection that has not been authorized yet, it returns an auth URL in its response:
+
+```
+To proceed, please authorize the GitHub connection by visiting:
+https://connect.composio.dev/auth/...
+
+Once you've completed the authorization, re-send your message and I'll continue.
+```
+
+Visit the URL, complete the OAuth flow, then resend your original message. The agent picks up where it left off.
+
+### Examples
+
+```ts
+import { zilmate } from 'zilmate'
+
+// Create a GitHub issue
+await zilmate.manager({
+  message: 'Create a GitHub issue for the auth bug we just found',
+})
+
+// Post a Slack message
+await zilmate.manager({
+  message: 'Post a summary of today\'s deployment to the #releases Slack channel',
+})
+
+// Create a Notion page
+await zilmate.manager({
+  message: 'Create a Notion page in the Engineering space with the meeting notes from today\'s standup',
+})
+```
+
+<Tip>
+  Connect your GitHub and Notion accounts via Composio once. From that point on, agents use those connections on every relevant task without prompting you for credentials again.
+</Tip>
+
+---
+
+## Tool files reference
+
+| Tool file | Purpose |
+|-----------|---------|
+| `browser.tool.ts` | Playwright-based navigation, extraction, form interaction, and screenshots |
+| `web-intelligence.tool.ts` | Deep multi-page crawling and research via Firecrawl / Tavily |
+| `web-search.tool.ts` | Real-time web search via Tavily API |
+| `composio.tool.ts` | Discovery, auth, and execution for 100+ external app integrations |

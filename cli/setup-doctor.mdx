@@ -1,0 +1,155 @@
+---
+title: "zilmate setup and doctor: Configure and Diagnose ZilMate"
+sidebarTitle: "setup / doctor"
+description: "Run zilmate setup to configure API keys interactively, then zilmate doctor to verify all services are healthy and credentials are working."
+---
+
+Before you run any ZilMate command, you need at minimum one credential: your AI Gateway API key. `zilmate setup` walks you through every configuration option in a single guided session and writes the result to a merge-safe `.env` file. Once configured, `zilmate doctor` verifies that every service you've enabled is reachable and healthy.
+
+---
+
+## `zilmate setup`
+
+`zilmate setup` is an interactive wizard that prompts you for credentials, writes them to a `.env` file in your project directory, and safely merges with any keys that already exist. You only need to re-run it when you add a new integration.
+
+<Steps>
+  <Step title="Run the wizard">
+    ```bash
+    zilmate setup
+    ```
+    The wizard starts by asking for your AI Gateway key. Everything else is optional.
+  </Step>
+  <Step title="Provide the required key">
+    Enter your `AI_GATEWAY_API_KEY` when prompted. This is the only credential required for basic chat.
+  </Step>
+  <Step title="Configure optional integrations">
+    The wizard then offers to set up the following optional services — skip any you don't need:
+
+    | Integration | Environment Variable(s) |
+    |---|---|
+    | Voice (Deepgram) | `DEEPGRAM_API_KEY`, `ZILMATE_VOICE_ENABLED` |
+    | Background jobs (Upstash Redis) | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
+    | Hosted job scheduler (QStash) | `UPSTASH_QSTASH_TOKEN`, `ZILMATE_PUBLIC_JOB_WEBHOOK_URL` |
+    | External app tools (Composio) | `COMPOSIO_API_KEY` |
+    | Web research (Tavily) | `TAVILY_API_KEY` |
+
+  </Step>
+  <Step title="Review the saved .env">
+    The wizard writes all values to `.env` in your project directory. Existing keys are preserved — only the keys you provided are updated.
+  </Step>
+</Steps>
+
+<Tip>
+If you only want basic chat, supply just the AI Gateway key and skip every optional prompt. You can always re-run `zilmate setup` later to add more integrations.
+</Tip>
+
+### Non-interactive mode
+
+For CI pipelines and automated environments, pass credentials directly as flags with `--yes` to skip all prompts:
+
+```bash
+# Minimal — AI Gateway key only
+zilmate setup --yes --ai-gateway-key <key>
+
+# With background jobs and QStash
+zilmate setup --yes --ai-gateway-key <key> \
+  --jobs-enabled true \
+  --qstash-token <token> \
+  --job-webhook-url https://example.com/api/zilmate/jobs
+
+# With voice
+zilmate setup --yes --ai-gateway-key <key> \
+  --voice-enabled true \
+  --deepgram-key <key>
+
+# With Composio and Tavily
+zilmate setup --yes --ai-gateway-key <key> \
+  --composio-key <key> \
+  --tavily-key <key>
+
+# With file roots and screenshot model
+zilmate setup --yes --ai-gateway-key <key> \
+  --file-roots "C:\Users\me\Documents,C:\work" \
+  --screenshot-model google/gemini-3.1-flash-lite
+```
+
+### Full flag reference
+
+| Flag | Description |
+|---|---|
+| `--yes` / `-y` | Non-interactive mode; skip all prompts |
+| `--ai-gateway-key <key>` | AI Gateway API key (required for all AI features) |
+| `--composio-key <key>` | Composio API key for external app tools |
+| `--tavily-key <key>` | Tavily API key for web research |
+| `--redis-url <url>` | Upstash Redis REST URL |
+| `--redis-token <token>` | Upstash Redis REST token |
+| `--jobs-enabled <true\|false>` | Enable or disable background jobs |
+| `--qstash-token <token>` | Upstash QStash token for hosted schedules |
+| `--job-webhook-url <url>` | Public job webhook URL for QStash callbacks |
+| `--job-webhook-secret <secret>` | Shared secret for the hosted job webhook |
+| `--trigger-workflows-enabled <true\|false>` | Enable Composio trigger-to-job workflows |
+| `--deepgram-key <key>` | Deepgram API key for real-time voice |
+| `--voice-enabled <true\|false>` | Enable or disable real-time voice |
+| `--voice-input-device <device>` | Terminal microphone device override for ffmpeg |
+| `--screenshot-model <model>` | Vision model for screenshot and camera analysis |
+| `--file-roots <roots>` | Comma-separated safe roots for the local files agent |
+| `--camera-device <device>` | Camera device override, e.g. `"video=Integrated Camera"` |
+| `--path <file>` / `-p` | Write to a specific `.env` path instead of the default |
+| `--force` / `-f` | Skip the overwrite confirmation when the file already exists |
+
+---
+
+## `zilmate doctor`
+
+`zilmate doctor` tests every service you have configured and reports whether each one is healthy. Run it after setup, after rotating keys, or whenever something stops working.
+
+```bash
+zilmate doctor
+```
+
+### What it checks
+
+`doctor` runs a check for each service and prints one of three statuses:
+
+- **✅ OK** — the service is reachable and the credential is valid
+- **⚠️ WARN** — the service is configured but returned an unexpected result
+- **❌ ERROR** — the service is unreachable or the credential is invalid
+
+The checks include:
+
+| Service | What is verified |
+|---|---|
+| AI Gateway | Key is present and returns a valid model list |
+| Redis (Upstash) | REST URL and token connect successfully |
+| QStash | Token is valid and the webhook URL is reachable |
+| Deepgram | API key authenticates against the Deepgram endpoint |
+| Composio | API key is valid and the local user session is registered |
+| Tavily | API key authenticates against the Tavily search endpoint |
+
+Doctor also reports model availability — so you can confirm which models your gateway exposes before running tasks.
+
+### Flags
+
+| Flag | Description |
+|---|---|
+| `--live` | Run live Gateway and Composio checks (makes real API calls) |
+| `--json` | Print the results as JSON instead of formatted output |
+| `--no-interactive` | Disable interactive dependency installers |
+| `-s, --session <id>` | Session ID to use for Composio live checks |
+
+### Example output
+
+```
+✅  AI Gateway          key present, 42 models available
+✅  Redis               connected (upstash)
+✅  QStash              token valid
+⚠️  Deepgram            key set but voice disabled — set ZILMATE_VOICE_ENABLED=true
+✅  Composio            user registered, 3 apps connected
+✅  Tavily              key valid
+```
+
+Exit code is `0` when all critical services pass and non-zero when any critical service reports an error.
+
+<Tip>
+Run `zilmate doctor` after every major configuration change — it's the fastest way to confirm that a new key or integration is wired up correctly before you start a session.
+</Tip>

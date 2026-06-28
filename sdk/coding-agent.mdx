@@ -1,0 +1,133 @@
+---
+title: "Coding Agent: Automated Repo Edits and Builds"
+sidebarTitle: "Coding Agent"
+description: "ZilMate's coding agent handles repo edits, builds, tests, and patches. It delegates to appBuilder and qaIntegration sub-coders and uses code intelligence tools."
+---
+
+The coding agent is ZilMate's dedicated specialist for all software engineering tasks. You call it when you want precise, automated work done inside a repository: adding routes, refactoring modules, fixing build errors, writing tests, scaffolding new features, or running typechecks. Unlike the Manager, the coding agent operates directly on the filesystem and shell — it reads source files, patches code, runs install commands, and confirms the result compiles and passes tests.
+
+---
+
+## Basic usage
+
+Call `zilmate.coding()` with a `{ prompt }` input. It returns `{ text }` — a structured report of everything the agent did: files changed, commands run, build status, and any remaining steps.
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'repo-session' });
+
+const { text } = await zilmate.coding({
+  prompt: 'Add input validation to the /api/users POST handler using zod.',
+});
+
+console.log(text);
+```
+
+### Multi-step prompt example
+
+Write multi-step prompts as a single string when you want the agent to execute a sequence of tasks before reporting back:
+
+```ts
+const { text } = await zilmate.coding({
+  prompt: [
+    'In this Next.js repo:',
+    '1) Add a /api/health route that returns { ok: true, timestamp: ISO string }',
+    '2) Run typecheck',
+    '3) Return files changed and test output',
+  ].join('\n'),
+});
+```
+
+---
+
+## Internal delegation
+
+The coding agent orchestrates two internal sub-coders depending on the nature of the task:
+
+<CardGroup cols={2}>
+  <Card title="appBuilder" icon="hammer">
+    Handles full application and UI implementation — scaffolding new apps, building complete features end to end, database migrations, authentication, payments, and game loops. It uses all filesystem, shell, and composio tools.
+  </Card>
+  <Card title="qaIntegration" icon="flask">
+    Handles testing, build fixes, regression checks, and release validation. It writes and runs Playwright and Jest suites, repairs failing typechecks, and confirms the build is clean before reporting success.
+  </Card>
+</CardGroup>
+
+The coding agent selects the appropriate sub-coder automatically based on your prompt. For a new feature build, it engages `appBuilder`; for a test pass or build repair, it engages `qaIntegration`.
+
+---
+
+## Code intelligence tools
+
+The coding agent uses the following tools to understand and navigate your codebase before and during edits:
+
+<Steps>
+  <Step title="grepCodebase">
+    Runs a fast regex search across the repository using ripgrep. The agent calls this before editing unfamiliar code to find where symbols, routes, or patterns are defined. Accepts `pattern`, optional `glob` filter, and `limit`.
+  </Step>
+  <Step title="reviewWorkingTree">
+    Reviews the current git working tree (staged and unstaged diffs) and generates a structured code review: Summary, Risks, Suggestions, and a list of tests to run. The agent uses this to assess the impact of edits before proceeding.
+  </Step>
+  <Step title="explainSymbol">
+    Finds all definitions and usages of a named symbol across the repo and returns a plain-English explanation. The agent uses this when it needs to understand an existing function, type, or variable before modifying it.
+  </Step>
+  <Step title="scaffoldFiles">
+    Creates new files with provided content in a single batch operation. Supports up to 10 files per call and respects an `overwrite` flag. The agent uses this when generating new modules, routes, or test files from scratch.
+  </Step>
+  <Step title="runProjectChecks">
+    Detects available npm scripts (`test`, `lint`, `typecheck`, `build`) in `package.json` and runs them in sequence. Returns per-script output and an `allPassed` boolean. The agent calls this to confirm changes compile and tests pass.
+  </Step>
+</Steps>
+
+---
+
+## Sandbox dev loop
+
+The coding agent runs a closed-loop compile-and-heal cycle. After making changes, it automatically calls `runProjectChecks` to verify the build. If checks fail, it reads the error output, diagnoses the cause, patches the relevant files, and runs checks again — repeating until all selected scripts exit cleanly or the step limit is reached.
+
+You do not need to manually re-invoke the agent after a build failure. Write your prompt with an acceptance criterion (e.g. "typecheck must pass") and the agent handles the iteration.
+
+---
+
+## Example: building a Next.js API route
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'api-build' });
+
+const { text } = await zilmate.coding({
+  prompt: `
+    In the Next.js App Router project at ./my-app:
+    1) Create app/api/health/route.ts that exports a GET handler returning
+       { ok: true, timestamp: new Date().toISOString() } with status 200.
+    2) Run typecheck (tsc --noEmit).
+    3) Report which files were created and whether typecheck passed.
+  `,
+});
+
+console.log(text);
+// → Created: app/api/health/route.ts
+// → Typecheck: passed (exit 0)
+```
+
+---
+
+## Tips for effective prompts
+
+<Tip>
+  Be specific about file paths. Instead of "add a health route", write "create `app/api/health/route.ts`". The more precise you are, the less time the agent spends searching for the right location.
+</Tip>
+
+<Tip>
+  State your acceptance criteria explicitly. Phrases like "run typecheck after", "all tests must pass", or "return the diff" give the agent a clear definition of done and activate the compile-and-heal loop.
+</Tip>
+
+<Tip>
+  Use numbered steps in your prompt when you need a specific sequence — install a dependency, then scaffold files, then run a build. The agent executes them in order and reports on each.
+</Tip>
+
+<Note>
+  The coding agent scopes its file operations to the working directory. Set `ZILMATE_WORKSPACE` to a stable path so the agent's notebook (durable project decisions and commands) persists across sessions.
+</Note>

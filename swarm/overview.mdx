@@ -1,0 +1,110 @@
+---
+title: "ZilMate Swarm: 30+ AI Specialists as a Digital Corporation"
+sidebarTitle: "Overview"
+description: "ZilMate's swarm is a decentralized Digital Corporation with 30+ specialist agents across 6 departments, connected by a peer-to-peer coordination fabric."
+---
+
+ZilMate's swarm is not a central hub with spokes — it is a fully horizontal peer-to-peer fabric of 30+ AI specialists organized like a real company. Instead of routing every request through a single bottleneck, specialists communicate directly with one another, share knowledge through a common wiki, and operate in parallel across six business departments. The result is a system that matches the speed and depth of a real engineering and business organization, without the coordination overhead of traditional centralized orchestrators.
+
+## Corporate Hierarchy
+
+The swarm's chain of command mirrors a functioning corporation, giving every agent a clear mandate and escalation path:
+
+```
+Supervisor Manager (CEO)
+    └── Digital Corporation (COO)
+            ├── Strategy & Product
+            ├── Engineering & Creative
+            ├── Development
+            ├── Growth & Marketing
+            ├── Operations & People
+            └── Data & Intelligence
+```
+
+The **Supervisor Manager** acts as CEO — it receives your top-level business objective and routes it to the **Digital Corporation** (COO). The COO then decomposes the goal and dispatches the relevant departments and specialists. Within departments, agents collaborate peer-to-peer without requiring the COO to mediate every handoff.
+
+## Two Coordination Pillars
+
+The swarm stays synchronized through two complementary mechanisms that together form a complete coordination fabric.
+
+### 1. Active P2P Bus — Joint War Rooms
+
+Any specialist can invoke another specialist directly using `collaborateWithPeer()`. This opens an isolated sub-thread for the target agent, passes the task and shared context, and receives a structured Markdown deliverable when the peer completes its work. No COO round-trip is required.
+
+```ts
+// Example: Product Manager engaging the Architect directly
+collaborateWithPeer({ peerKey: 'architect', task: 'Design the API schema for the payments module' });
+```
+
+Use Joint War Rooms for real-time, high-bandwidth collaboration — for example, when a coder needs an architect's schema before it can write a single line of code, or when a content writer needs the SEO expert's keyword brief before drafting an article.
+
+### 2. Passive Blackboard — Corporate Wiki
+
+The Corporate Wiki is the swarm's shared long-term memory. Agents publish completed deliverables and retrieve relevant context without requiring a live peer to be present.
+
+- `publishToCorporateWiki` — index a Markdown artifact (schema, report, spec, analysis) into the shared vector knowledge graph
+- `queryCorporateWiki` — semantically retrieve relevant past work before starting a new task
+
+```ts
+// Publishing a completed competitive analysis
+publishToCorporateWiki({ title: 'Q3 Competitor Pricing Report', content: report });
+
+// Retrieving context before starting a new task
+queryCorporateWiki({ query: 'competitor pricing benchmarks' });
+```
+
+The Corporate Wiki decouples agents in time — a specialist that ran hours ago can hand off to a specialist running now, without either one being active simultaneously.
+
+## Triggering a Swarm Task
+
+You interact with the swarm by providing a complex business objective. The CEO and COO handle all specialist selection and department routing automatically.
+
+**CLI**
+
+```bash
+zilmate swarm "Launch a new SaaS pricing page — research competitors, design the layout, implement it in Next.js, and write SEO-optimized copy"
+```
+
+**SDK**
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'swarm-session-1' });
+
+const { text } = await zilmate.manager({
+  message: 'Launch a new SaaS pricing page — research competitors, design the layout, implement it in Next.js, and write SEO-optimized copy',
+});
+
+console.log(text);
+```
+
+<Tip>
+  Pass a high-level business goal, not a list of agent instructions. The COO decomposes the objective and assigns specialists automatically. You do not need to specify which agents to use.
+</Tip>
+
+## Swarm Memory Layers
+
+ZilMate maintains three independent memory layers to ensure continuity across multi-department handoffs and long-running tasks.
+
+| Layer | Underlying Storage | Purpose |
+|---|---|---|
+| **Short-Term Context** | Redis / Local JSON (`swarm-control.json`) | Stores the current execution state and active conversation session threads |
+| **Long-Term Semantic** | Upstash Vector / SuperMemory | Stores semantic knowledge assets, documents, and historical analysis indexed for similarity search |
+| **Transactional State** | SQLite (`zilo-jobs.db`) | Tracks persistent job states, webhook events, and scheduled background tasks |
+
+These layers work together: short-term memory keeps a running session coherent, long-term semantic memory makes past work retrievable across sessions, and transactional state ensures no background job or webhook is lost.
+
+## Explore the Swarm
+
+<CardGroup cols={3}>
+  <Card title="Departments" icon="building" href="/swarm/departments">
+    Browse the full directory of 30+ specialist agents organized across all six departments.
+  </Card>
+  <Card title="Joint War Rooms" icon="people-arrows" href="/swarm/joint-war-rooms">
+    Learn how peer-to-peer agent collaboration works, including lifecycle flows and autonomous loops.
+  </Card>
+  <Card title="Safety Firewall" icon="shield-halved" href="/swarm/safety-firewall">
+    Understand the multi-layer approval system that protects your environment from destructive operations.
+  </Card>
+</CardGroup>

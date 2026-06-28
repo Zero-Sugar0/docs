@@ -1,0 +1,167 @@
+---
+title: "Long-Term Memory: Persist Knowledge Across Agent Sessions"
+sidebarTitle: "Long-Term Memory"
+description: "Store and retrieve text memories across sessions using ZilMate's remember() and recall() API. Backed by Upstash Redis or local JSON for single-node deployments."
+---
+
+ZilMate gives every agent session persistent long-term memory — facts, preferences, and decisions — that survive across independent runs. Whether you're tracking user preferences in a Next.js app or preserving research findings between automation scripts, the memory API gives your agents a durable knowledge foundation without any external infrastructure required to get started.
+
+## API Reference
+
+### Methods
+
+<ParamField body="zilmate.remember({ text, tags? })" type="Promise<void>">
+  Stores a text memory, optionally annotated with tags for later filtering. Call this whenever your agent learns something worth keeping — a user preference, a confirmed decision, or a research finding.
+
+  - `text` *(string, required)* — The memory content to store.
+  - `tags` *(string[], optional)* — Labels to group or categorize the memory (e.g., `['preferences', 'user']`).
+</ParamField>
+
+<ParamField body="zilmate.recall({ query?, limit? })" type="Promise<LongTermMemory[]>">
+  Performs a semantic search over stored memories and returns the most relevant results. Use this before large tasks to inject relevant context into the agent's working memory.
+
+  - `query` *(string, optional)* — Natural language search term. Omit to retrieve all memories.
+  - `limit` *(number, optional)* — Maximum number of results to return.
+</ParamField>
+
+<ParamField body="zilmate.listMemories()" type="Promise<LongTermMemory[]>">
+  Retrieves every memory stored for the current session, in insertion order. Use this when you need a full audit of what the agent knows.
+</ParamField>
+
+<ParamField body="zilmate.forget(id)" type="Promise<void>">
+  Deletes a single memory by its unique ID. Use this to remove stale or incorrect facts without wiping the entire store.
+
+  - `id` *(string, required)* — The `id` of the `LongTermMemory` entry to remove.
+</ParamField>
+
+<ParamField body="zilmate.clearMemories()" type="Promise<void>">
+  Permanently deletes all memories for the current session. Use with care — this action is irreversible.
+</ParamField>
+
+### The `LongTermMemory` type
+
+Each memory object returned by `recall()` and `listMemories()` conforms to the following shape:
+
+<ResponseField name="id" type="string">
+  Unique identifier for the memory entry.
+</ResponseField>
+
+<ResponseField name="text" type="string">
+  The stored memory content.
+</ResponseField>
+
+<ResponseField name="tags" type="string[]">
+  The tags associated with this memory at the time it was stored.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp recording when the memory was created.
+</ResponseField>
+
+## TypeScript Examples
+
+### Store a memory
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'dashboard-user-123' });
+
+// Store a plain memory
+await zilmate.remember({ text: 'User prefers pnpm and App Router' });
+
+// Store a memory with tags for easy grouping
+await zilmate.remember({
+  text: 'User prefers dark mode and compact layouts',
+  tags: ['preferences', 'user'],
+});
+```
+
+### Search memories semantically
+
+```ts
+// Retrieve the most relevant memories for a given topic
+const hits = await zilmate.recall({ query: 'package manager', limit: 5 });
+
+for (const memory of hits) {
+  console.log(memory.id, memory.text, memory.tags, memory.createdAt);
+}
+```
+
+### List all memories
+
+```ts
+const all = await zilmate.listMemories();
+console.log(`${all.length} memories stored for this session.`);
+```
+
+### Delete a specific memory
+
+```ts
+const memories = await zilmate.listMemories();
+const stale = memories.find((m) => m.text.includes('old preference'));
+
+if (stale) {
+  await zilmate.forget(stale.id);
+  console.log('Removed stale memory:', stale.id);
+}
+```
+
+### Clear all memories
+
+```ts
+// Wipe the slate clean for a fresh session
+await zilmate.clearMemories();
+console.log('All memories cleared.');
+```
+
+## Storage Backends
+
+ZilMate's long-term memory works out of the box with zero configuration. For production or multi-instance deployments, switch to Upstash Redis.
+
+### Local JSON (default)
+
+No environment variables required. ZilMate stores memories as JSON files inside `ZILMATE_WORKSPACE` on the local filesystem. This backend is ideal for local development, single-node scripts, and prototyping.
+
+### Upstash Redis (multi-instance)
+
+Set the following environment variables to enable the Redis-backed memory store. This backend is durable, horizontally scalable, and safe to use across multiple Next.js instances or serverless functions.
+
+```env
+UPSTASH_REDIS_REST_URL=https://your-redis-endpoint.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-rest-token
+```
+
+<Note>
+  When both variables are present, ZilMate automatically selects the Upstash Redis backend — no code changes needed.
+</Note>
+
+## CLI Equivalents
+
+You can manage long-term memory directly from the terminal without writing any code:
+
+```bash
+# Store a memory
+zilmate memory remember "User prefers pnpm and App Router"
+
+# Search memories semantically
+zilmate memory recall "package manager"
+
+# List all stored memories
+zilmate memory list
+```
+
+## Best Practices
+
+<Tip>
+  Use `tags` to group related memories. Tags like `['preferences', 'user']` or `['decisions', 'project-x']` make it easy to reason about memory categories without running a semantic search.
+</Tip>
+
+<Tip>
+  Call `recall()` before starting a large task to inject the most relevant context into your agent's prompt. This prevents the agent from asking for information it already knows and keeps context windows lean.
+</Tip>
+
+- **Use descriptive, complete sentences** as memory text. `"User confirmed: deploy to Vercel, not Render"` is far more useful than `"Vercel"`.
+- **Scope sessionIds** to users or projects in multi-tenant applications so memories never bleed across tenants.
+- **Prefer `forget()` over `clearMemories()`** when removing a single outdated fact — wiping all memories is a destructive operation that discards everything the agent has learned.
+- **Combine `remember` and `recall`** in a feedback loop: after each agent run, store key outcomes; before the next run, recall them as context.

@@ -1,0 +1,208 @@
+---
+title: "Background Jobs in ZilMate: Scheduling AI Tasks"
+sidebarTitle: "Overview"
+description: "ZilMate's job system lets you queue, schedule, and monitor AI-powered background tasks. Jobs persist in SQLite and execute via local worker or QStash webhooks."
+---
+
+ZilMate's job system gives any agent task a durable, retryable execution lifecycle — schedule work by cron, run it on demand, and retrieve logs when it finishes. Whether you need a weekly GitHub summary, a nightly analysis run, or an on-demand data digest, the job system queues and tracks every execution from creation through completion.
+
+## Job lifecycle
+
+Every job moves through a fixed sequence of states:
+
+<Steps>
+  <Step title="Created">
+    You call `createJob()`. ZilMate writes the job record to SQLite and assigns it a unique ID.
+  </Step>
+  <Step title="Queued">
+    The job is waiting for its scheduled time to arrive, or is ready for immediate execution.
+  </Step>
+  <Step title="Running">
+    The local worker or a QStash webhook delivery picks up the job and begins executing the task.
+  </Step>
+  <Step title="Completed or Failed">
+    ZilMate writes the final status and appends a log entry. If the job fails and `maxAttempts` allows, it re-queues for a retry.
+  </Step>
+</Steps>
+
+## Storage
+
+ZilMate persists all job records in a SQLite database named **`zilo-jobs.db`**, located inside your `ZILMATE_WORKSPACE` directory. This means jobs survive process restarts and are available for inspection or replay at any time.
+
+## Execution modes
+
+ZilMate supports two ways to execute due jobs:
+
+**1. Local worker** — Run `zilmate jobs worker` from your terminal. The worker polls for due jobs and executes them on your machine while the process is active. This is the fastest path during development.
+
+**2. QStash** — For hosted or serverless environments, register your job's cron schedule with Upstash QStash. QStash calls your public webhook URL on schedule, so jobs execute even when your local machine is offline.
+
+<Note>
+  Set `ZILMATE_JOBS_ENABLED=true` in your environment to activate the job system before using either execution mode.
+</Note>
+
+## SDK methods
+
+Use the following methods on a `createZilMate()` instance to manage jobs programmatically.
+
+### `createJob(options)`
+
+Creates a new background job and persists it to SQLite.
+
+<ParamField body="task" type="string" required>
+  The natural-language instruction the agent will execute when the job runs.
+</ParamField>
+
+<ParamField body="schedule" type="string">
+  A standard 5-field cron expression (e.g. `0 9 * * 1`). Omit for on-demand-only jobs.
+</ParamField>
+
+<ParamField body="maxAttempts" type="number">
+  Maximum number of execution attempts before the job is marked failed. Defaults to `1`.
+</ParamField>
+
+Returns `Promise<ZilMateJob>`.
+
+---
+
+### `listJobs(options?)`
+
+Returns an array of all job records, optionally filtered by status or schedule.
+
+Returns `Promise<ZilMateJob[]>`.
+
+---
+
+### `getJob(id)`
+
+Fetches a single job record by its ID.
+
+<ParamField body="id" type="string" required>
+  The unique job ID returned by `createJob()`.
+</ParamField>
+
+Returns `Promise<ZilMateJob>`.
+
+---
+
+### `getJobLogs(id)`
+
+Retrieves the execution log entries for a specific job.
+
+<ParamField body="id" type="string" required>
+  The unique job ID.
+</ParamField>
+
+Returns `Promise<JobLog[]>`.
+
+---
+
+### `runJob(id)`
+
+Executes a specific job immediately, regardless of its schedule.
+
+<ParamField body="id" type="string" required>
+  The unique job ID to execute right now.
+</ParamField>
+
+---
+
+### `runDueJobs()`
+
+Scans all scheduled jobs and executes any whose cron schedule is currently due. Embed this call in a serverless handler or cron endpoint to drive scheduled execution without the CLI worker.
+
+---
+
+### `cancelJob(id)`
+
+Cancels a pending job, preventing future execution.
+
+<ParamField body="id" type="string" required>
+  The unique job ID to cancel.
+</ParamField>
+
+---
+
+## Types
+
+### `ZilMateJob`
+
+<ResponseField name="id" type="string">
+  Unique identifier for the job.
+</ResponseField>
+
+<ResponseField name="task" type="string">
+  The natural-language instruction the agent executes.
+</ResponseField>
+
+<ResponseField name="schedule" type="string">
+  The cron expression defining when the job runs, if any.
+</ResponseField>
+
+<ResponseField name="status" type='"pending" | "running" | "completed" | "failed"'>
+  The current lifecycle state of the job.
+</ResponseField>
+
+<ResponseField name="maxAttempts" type="number">
+  The maximum number of retry attempts configured for this job.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of when the job was created.
+</ResponseField>
+
+### `JobLog`
+
+<ResponseField name="jobId" type="string">
+  The ID of the job this log entry belongs to.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  The log message emitted during execution.
+</ResponseField>
+
+<ResponseField name="level" type="string">
+  Severity level of the log entry (e.g. `info`, `error`).
+</ResponseField>
+
+<ResponseField name="timestamp" type="string">
+  ISO 8601 timestamp of when this log entry was written.
+</ResponseField>
+
+## Quick example
+
+Create a weekly summary job, then retrieve its logs after it runs:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'my-session' });
+
+// Create a job that runs every Monday at 9am
+const job = await zilmate.createJob({
+  task: 'Weekly summary of GitHub PRs and open issues',
+  schedule: '0 9 * * 1',
+  maxAttempts: 3,
+});
+
+console.log('Job created:', job.id, '— status:', job.status);
+
+// After the job runs, retrieve its logs
+const logs = await zilmate.getJobLogs(job.id);
+logs.forEach((log) => console.log(`[${log.level}] ${log.message}`));
+```
+
+<Note>
+  Start the local worker in a separate terminal with `zilmate jobs worker` to process the job when its schedule is due.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Scheduling" icon="clock" href="/jobs/scheduling">
+    Learn cron syntax, configure recurring jobs, and run the local worker or embed `runDueJobs()` in a serverless handler.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/jobs/webhooks">
+    Connect job execution to Upstash QStash for cloud delivery and test locally with a Cloudflare tunnel.
+  </Card>
+</CardGroup>

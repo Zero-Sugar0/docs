@@ -1,0 +1,102 @@
+---
+title: "zilmate swarm: Launch Multi-Agent Business Workflows"
+sidebarTitle: "swarm"
+description: "zilmate swarm runs a full Digital Corporation workflow — the COO delegates your goal to 30+ specialist agents across departments to deliver a comprehensive result."
+---
+
+`zilmate swarm` is the most powerful CLI command in ZilMate. Hand it a high-level business goal, and it routes that goal to the Digital Corporation COO, who delegates across multiple specialist departments working in parallel. The result is a structured, comprehensive deliverable that no single agent could produce alone.
+
+## Usage
+
+```bash
+zilmate swarm "<business goal>"
+```
+
+Pass a named session to preserve swarm state across related runs:
+
+```bash
+zilmate swarm "<business goal>" --session my-swarm-session
+```
+
+---
+
+## Examples
+
+```bash
+# Security audit with a remediation plan
+zilmate swarm "Audit our codebase for security vulnerabilities and produce a remediation plan"
+
+# Competitive analysis and go-to-market strategy
+zilmate swarm "Research our top 3 competitors, analyze pricing, and draft a go-to-market strategy"
+
+# Full product launch workflow
+zilmate swarm "Build a landing page for our new product feature and publish to Vercel"
+
+# Financial pipeline review
+zilmate swarm "Analyze last quarter's revenue data and generate a board-ready summary with recommendations"
+
+# Operations audit
+zilmate swarm "Review our current CI/CD pipeline, identify bottlenecks, and propose an optimized workflow"
+```
+
+---
+
+## How it works
+
+<Steps>
+  <Step title="Manager receives the goal">
+    The Supervisor Manager (CEO) receives your goal and determines whether it requires swarm-level orchestration.
+  </Step>
+  <Step title="COO delegates to departments">
+    The Digital Corporation COO breaks the goal into department-level work packages and assigns each to the relevant department lead.
+  </Step>
+  <Step title="Department specialists collaborate">
+    Specialists within each department execute their tasks and communicate via a horizontal peer-to-peer messaging fabric called Joint War Rooms, where agents negotiate schemas and coordinate artifacts directly.
+  </Step>
+  <Step title="Deliverable is compiled">
+    Once all departments report their findings, the COO assembles the outputs into a single structured Markdown report with findings, recommendations, and any generated artifacts.
+  </Step>
+</Steps>
+
+### Departmental structure
+
+ZilMate's Digital Corporation organizes work across seven layers:
+
+```
+💼 Supervisor Manager (CEO)
+└── ⚙️ Digital Corporation (COO)
+     ├── 📊 Strategy & Planning Department
+     ├── 💻 Software Engineering Department
+     ├── 📈 Growth & Marketing Department
+     ├── 📋 General Operations Department
+     ├── 🗄️ Data Analytics Department
+     ├── 🛡️ Security & Audits Department
+     └── 💰 Revenue & Finance Department
+```
+
+Each department contains multiple specialist agents with dedicated toolkits, instructions, and escalation paths.
+
+---
+
+## Output
+
+`zilmate swarm` produces a structured Markdown report that includes:
+
+- **Executive summary** — top-level findings and recommendations
+- **Department findings** — detailed output from each department that contributed
+- **Artifacts** — any files, code, or documents generated during execution
+- **Next actions** — prioritized recommended steps
+
+---
+
+## Runtime and live status
+
+Swarm tasks are thorough — they can run for several minutes depending on the complexity of your goal. The CLI displays live department status updates as each specialist completes its work, so you always know which department is active and how far along the swarm is.
+
+<Warning>
+Swarm tasks consume more tokens and take longer than single-agent calls. For straightforward, focused requests, use `zilmate manager` instead.
+</Warning>
+
+<Tip>
+Use `zilmate manager` for tasks that fit within a single domain — code review, drafting a document, answering a question. Use `zilmate swarm` when the goal genuinely spans multiple departments: strategy + engineering + marketing, for example.
+</Tip>

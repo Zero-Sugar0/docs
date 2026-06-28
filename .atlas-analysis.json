@@ -1,0 +1,153 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "ZilMate",
+  "projectDescription": "A programmable multi-agent AI layer for Next.js applications, server environments, and automation scripts — featuring a CLI, TypeScript SDK, 30+ specialist swarm agents, semantic memory, background jobs, and voice control.",
+  "theme": "luma",
+  "primaryColor": "#7c7c80",
+  "lightColor": "#151c28",
+  "darkColor": "#f2f2f2",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Core SDK",
+            "pages": [
+              "sdk/overview",
+              "sdk/manager-agent",
+              "sdk/coding-agent",
+              "sdk/subagents",
+              "sdk/model-selection"
+            ]
+          },
+          {
+            "group": "Swarm Architecture",
+            "pages": [
+              "swarm/overview",
+              "swarm/departments",
+              "swarm/joint-war-rooms",
+              "swarm/safety-firewall"
+            ]
+          },
+          {
+            "group": "Memory & Wiki",
+            "pages": [
+              "memory/long-term-memory",
+              "memory/corporate-wiki",
+              "memory/session-continuity"
+            ]
+          },
+          {
+            "group": "Background Jobs",
+            "pages": [
+              "jobs/overview",
+              "jobs/scheduling",
+              "jobs/webhooks"
+            ]
+          },
+          {
+            "group": "Tool Suites",
+            "pages": [
+              "tools/devops",
+              "tools/sysops",
+              "tools/cloud-storage",
+              "tools/multimedia",
+              "tools/browser-composio"
+            ]
+          },
+          {
+            "group": "Voice & Chat",
+            "pages": [
+              "voice/overview",
+              "voice/chat-integrations"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/overview",
+              "cli/setup-doctor",
+              "cli/talk-manager",
+              "cli/swarm",
+              "cli/jobs",
+              "cli/memory",
+              "cli/models"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "TypeScript SDK with createZilMate() factory for Next.js and server environments",
+    "CLI binary (zilmate) with interactive chat, voice, and one-shot task execution",
+    "Hierarchical Manager Agent (CEO) orchestrating 30+ specialist swarm agents",
+    "Decentralized peer-to-peer Joint War Rooms for cross-department collaboration",
+    "Semantic Corporate Wiki backed by Upstash Vector or SuperMemory",
+    "Long-term memory with remember/recall API",
+    "Background job scheduling via cron, QStash, and Cloudflare tunnel webhooks",
+    "Real-time voice control powered by Deepgram (STT + TTS)",
+    "Semantic Approvals Firewall for human-in-the-loop safety on destructive actions",
+    "Composio integration for 100+ external app connectors",
+    "Cloud storage tools: AWS S3, Google Cloud Storage, Vercel Blob",
+    "Multimedia tools: FFmpeg processing and Deepgram transcription",
+    "Session continuity with handoff summaries across runs",
+    "Model-per-agent selection persisted to workspace config"
+  ],
+  "publicApiSurface": [
+    "createZilMate({ sessionId?, onProgress?, confirm? })",
+    "zilmate.manager({ message })",
+    "zilmate.chat({ message })",
+    "zilmate.coding({ prompt })",
+    "zilmate.research({ query })",
+    "zilmate.imageAgent({ prompt })",
+    "zilmate.goalManager({ message })",
+    "zilmate.help({ question })",
+    "zilmate.post({ message })",
+    "zilmate.situation({ sessionId })",
+    "zilmate.handoff({ sessionId })",
+    "zilmate.remember({ text, tags? })",
+    "zilmate.recall({ query?, limit? })",
+    "zilmate.listMemories()",
+    "zilmate.forget(id)",
+    "zilmate.clearMemories()",
+    "zilmate.createJob({ task, schedule?, maxAttempts? })",
+    "zilmate.listJobs(options?)",
+    "zilmate.getJob(id)",
+    "zilmate.getJobLogs(id)",
+    "zilmate.runJob(id)",
+    "zilmate.runDueJobs()",
+    "zilmate.cancelJob(id)",
+    "zilmate.handleJobWebhook(body, secret)",
+    "zilmate.startVoiceSession({ onProgress? })",
+    "zilmate.getVoiceConfig()",
+    "applyStoredModelSelections()",
+    "saveModelSelection(agentKey, modelId)",
+    "buildSituationBrief(sessionId)",
+    "loadSessionHandoff(sessionId)",
+    "clearSessionApprovals()",
+    "zilmate talk",
+    "zilmate manager \"<task>\"",
+    "zilmate swarm \"<goal>\"",
+    "zilmate setup",
+    "zilmate doctor",
+    "zilmate jobs create / worker / list",
+    "zilmate memory remember / recall / list",
+    "zilmate models",
+    "zilmate triggers listen"
+  ]
+}

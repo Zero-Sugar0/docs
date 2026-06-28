@@ -1,0 +1,157 @@
+---
+title: "SysOps Tool Suite: Ports, SQLite, and System Monitoring"
+sidebarTitle: "SysOps Tools"
+description: "ZilMate's SysOps tools let agents inspect open ports, query SQLite databases, monitor disk and memory usage, and manage system-level state."
+---
+
+The SysOps suite gives agents real-time visibility into your machine's runtime state — ports, databases, disk, memory, and processes — without requiring you to open a terminal or run a single command yourself. Ask the Manager in plain language and it maps your question to the right tool, executes it, and surfaces the result in context.
+
+## Port inspection
+
+<AccordionGroup>
+  <Accordion title="listOpenPorts — List all listening TCP ports">
+    Lists all open and listening TCP ports on the local machine, including the PID and process name bound to each port. Works on Windows (PowerShell `Get-NetTCPConnection`), macOS and Linux (`lsof` or `netstat` fallback).
+
+    **Parameters:** none.
+
+    **Example agent prompt**
+    ```
+    Which port is my Next.js server running on? Is port 3000 free?
+    ```
+
+    The agent will call `listOpenPorts`, scan the result for port 3000, and report back whether it is in use and which process owns it.
+  </Accordion>
+
+  <Accordion title="pingHost — Check network reachability">
+    Sends ICMP Echo requests to a hostname or IP address to check network latency and packet loss. Works on Windows (`ping -n`), macOS, and Linux (`ping -c`).
+
+    **Parameters**
+    - `host` _(string)_ — hostname or IP address to ping (e.g. `"google.com"`, `"8.8.8.8"`).
+
+    **Example agent prompt**
+    ```
+    Can my server reach api.stripe.com?
+    ```
+  </Accordion>
+
+  <Accordion title="traceRoute — Trace the network path to a host">
+    Traces the routing path packets take to reach a host. Uses `tracert` on Windows and `traceroute` on macOS and Linux.
+
+    **Parameters**
+    - `host` _(string)_ — hostname or IP address to trace.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## SQLite
+
+Agents use SQLite tools to inspect your local job store, query application databases, or analyze any `.db` file in your workspace. Access is read-only by default — write operations require confirmation.
+
+<AccordionGroup>
+  <Accordion title="getDatabaseSchema — Inspect a SQLite database">
+    Opens a SQLite database file and returns its full schema: table names and `CREATE TABLE` definitions. Falls back from the `sqlite3` CLI to a Python `sqlite3` module if the CLI is not available. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `databasePath` _(string)_ — relative or absolute path to the `.db` file in your workspace.
+
+    **Example agent prompt**
+    ```
+    Show me the schema of my zilo-jobs.db file.
+    ```
+  </Accordion>
+
+  <Accordion title="runDatabaseQuery — Execute a SQL query">
+    Executes a raw SQL statement against a local SQLite database. `SELECT` queries are automatically capped at 100 rows unless you specify a `LIMIT`. Uses a Python fallback if the `sqlite3` CLI is unavailable. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `databasePath` _(string)_ — relative or absolute path to the `.db` file.
+    - `sql` _(string)_ — the SQL query to run (e.g. `"SELECT * FROM jobs ORDER BY created_at DESC LIMIT 10"`).
+
+    **Example agent prompt**
+    ```
+    Show me the last 10 rows in my zilo-jobs.db jobs table.
+    ```
+
+    <Note>
+      SQLite access is read-only by default. If you ask an agent to run an `INSERT`, `UPDATE`, or `DELETE` statement, it will request your approval through the confirmation firewall before executing.
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## System monitoring
+
+<AccordionGroup>
+  <Accordion title="getSystemMetrics — CPU, memory, disk, and OS info">
+    Retrieves a real-time snapshot of your host machine: CPU utilization (sampled over 150 ms), memory allocation, workspace disk usage, and OS metadata including platform, architecture, kernel release, and uptime. Works on Windows, macOS, and Linux.
+
+    **Parameters:** none.
+
+    **Returns**
+    ```json
+    {
+      "os": { "name": "Darwin", "platform": "darwin", "release": "...", "architecture": "arm64", "uptimeHours": 12.4 },
+      "cpu": { "activeUtilizationPercent": 18.3, "cores": 10, "model": "Apple M2 Pro" },
+      "memory": { "totalGb": 16, "freeGb": 6.2, "usedGb": 9.8, "utilizationPercent": 61.3 },
+      "disk": { "workspacePath": "/home/user/project", "totalGb": 460, "freeGb": 120.4, "usedGb": 339.6, "utilizationPercent": 73.8 }
+    }
+    ```
+
+    **Example agent prompt**
+    ```
+    How much free disk space do I have, and what is my current memory usage?
+    ```
+  </Accordion>
+
+  <Accordion title="listSystemProcesses — List active processes">
+    Lists running processes sorted by CPU, memory, or PID. Supports filtering by process name. Works on Windows (PowerShell), macOS, and Linux (`ps`).
+
+    **Parameters**
+    - `sortBy` _(enum, default `memory`)_ — sort by `cpu`, `memory`, or `pid`.
+    - `limit` _(number, default `30`)_ — maximum number of processes to return (max 500).
+    - `filterName` _(string, optional)_ — case-insensitive name filter.
+  </Accordion>
+
+  <Accordion title="killSystemProcess — Terminate a process">
+    Terminates a process by PID, name, or the local port it is listening on. Works on Windows, macOS, and Linux.
+
+    **Parameters**
+    - `pid` _(number, optional)_ — process ID.
+    - `name` _(string, optional)_ — process name (kills all matching instances).
+    - `port` _(number, optional)_ — kill whatever process owns this port.
+    - `force` _(boolean, default `true`)_ — use `SIGKILL` / force taskkill.
+
+    <Warning>
+      This is a destructive operation. The agent always requests your approval before terminating any process.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Examples
+
+```ts
+import { zilmate } from 'zilmate'
+
+// Port inspection
+const ports = await zilmate.manager({
+  message: 'Which port is my Next.js server running on? Is port 3000 free?',
+})
+
+// SQLite query
+const jobs = await zilmate.manager({
+  message: 'Show me the last 10 rows in my zilo-jobs.db jobs table',
+})
+
+// System snapshot
+const metrics = await zilmate.manager({
+  message: 'Give me a full system health snapshot — CPU, memory, and disk',
+})
+```
+
+<Tip>
+  Combine SysOps with the DevOps suite for a full local environment audit. For example, ask the Manager to list open ports, then cross-reference them against your running Docker containers — all in a single message.
+</Tip>

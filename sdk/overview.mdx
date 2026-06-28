@@ -1,0 +1,169 @@
+---
+title: "ZilMate SDK Overview and Factory Function"
+sidebarTitle: "Overview"
+description: "Initialize a ZilMate session with createZilMate(). Covers sessionId, onProgress, confirm options, and the full method surface of the returned instance."
+---
+
+The ZilMate SDK gives you a programmable agent layer you can embed directly in Next.js App Router routes, Node.js workers, and automation scripts. Every capability available in the CLI — the Manager orchestrator, specialist subagents, long-term memory, background jobs, voice, and model selection — is accessible through a single factory function: `createZilMate()`, imported from `zilmate/server`.
+
+```bash
+npm install zilmate
+```
+
+Set the required environment variables before your first call:
+
+```env
+AI_GATEWAY_API_KEY=your-key-here
+ZILMATE_USER_ID=zilmate-your-id
+```
+
+Optional integrations: `COMPOSIO_API_KEY`, `TAVILY_API_KEY`, Upstash Redis/QStash credentials, `DEEPGRAM_API_KEY`.
+
+---
+
+## createZilMate() options
+
+`createZilMate(options?)` accepts a single options object and returns a bound instance with all agent and utility methods scoped to your session.
+
+<ParamField body="sessionId" type="string" optional>
+  Isolates memory, jobs, and context per user or session. Defaults to `'default'` when omitted. Pass a stable identifier — such as a user ID or workspace slug — to keep each user's data separate.
+</ParamField>
+
+<ParamField body="onProgress" type="(event: ProgressEvent) => void" optional>
+  Receives live progress events as agents work. Each event carries a `type` string (e.g. `tool:start`, `tool:end`, `search:start`) and a human-readable `label`. Use this to stream status updates to a UI or write structured logs.
+</ParamField>
+
+<ParamField body="confirm" type="ConfirmationHandler" optional>
+  Approval callback invoked before any destructive operation. Receives a `ConfirmationRequest` object with a `message` describing the action. Return `true` to proceed or `false` to abort. In web apps, use this to pause execution and await a user click before continuing.
+</ParamField>
+
+### Basic initialization
+
+```ts
+import { createZilMate } from 'zilmate/server';
+import type { ConfirmationHandler } from 'zilmate/server';
+
+const confirm: ConfirmationHandler = async (request) => {
+  console.log('Approve?', request.message);
+  return true;
+};
+
+const zilmate = createZilMate({
+  sessionId: 'dashboard-user-123',
+  onProgress: (event) => console.log(event.type, event.label),
+  confirm,
+});
+
+const { text } = await zilmate.manager({ message: 'Summarize my open jobs and suggest next steps.' });
+console.log(text);
+```
+
+---
+
+## Method reference
+
+The object returned by `createZilMate()` exposes the following methods. All async methods return a `Promise`.
+
+### Agent methods
+
+| Method signature | Description |
+|---|---|
+| `chat(input: ZilMateTextInput): Promise<ZilMateTextResult>` | Conversational chat routed through the Manager. Equivalent to `manager()` but semantically scoped to dialogue. |
+| `manager(input: ZilMateTextInput \| ZilMatePromptInput): Promise<ZilMateTextResult>` | CEO-level orchestrator. Routes any task to the right specialist, uses tools directly, and returns a final text response. |
+| `help(input: ZilMateQuestionInput \| ZilMateTextInput): Promise<ZilMateTextResult>` | Quick-help agent. Answers usage and troubleshooting questions without full orchestration overhead. |
+| `guide(input: ZilMateTextInput): Promise<ZilMateTextResult>` | Conversational guide powered by the chat agent. Best for walkthroughs and explanations. |
+| `post(input: ZilMatePromptInput): Promise<ZilMateTextResult>` | Copywriter agent. Generates short social posts, status updates, and announcements. |
+| `research(input: ZilMateResearchInput \| ZilMateTextInput): Promise<ZilMateTextResult>` | Docs and web research agent. Returns sourced answers with citations. |
+| `coding(input: ZilMatePromptInput): Promise<ZilMateTextResult>` | Coding agent with appBuilder and qaIntegration sub-coders. Handles repo edits, builds, tests, and patches. |
+| `imageAgent(input: ZilMatePromptInput): Promise<ZilMateTextResult>` | Image director. Refines your prompt with `enhanceImagePrompt` then calls `generateImage` for precise output. |
+| `goalManager(input: ZilMatePromptInput): Promise<ZilMateTextResult>` | Goal planner. Breaks a high-level goal into ordered steps and schedules. |
+
+### Situational awareness and session continuity
+
+| Method signature | Description |
+|---|---|
+| `situation(input?: { sessionId?: string }): Promise<SituationBrief>` | Returns a structured brief: `{ git, recentJobs, models, memory, workspace }`. Use this to give the Manager full context before a complex task. |
+| `handoff(input?: { sessionId?: string }): Promise<HandoffResult \| null>` | Loads a saved session handoff: `{ summary, nextActions }`. Returns `null` if no handoff exists. Use it to resume interrupted work. |
+
+### Memory methods
+
+| Method signature | Description |
+|---|---|
+| `remember(input: ZilMateMemoryInput): Promise<LongTermMemory>` | Persist a text entry to long-term memory. Accepts `{ text, tags? }`. |
+| `recall(input?: ZilMateRecallInput): Promise<LongTermMemory[]>` | Semantic search over stored memories. Accepts `{ query?, limit? }`. Defaults to `limit: 8`. |
+| `listMemories(): Promise<LongTermMemory[]>` | Returns all stored memory entries for the workspace. |
+| `forget(id: string): Promise<void>` | Deletes a single memory entry by ID. |
+| `clearMemories(): Promise<void>` | Wipes all long-term memories for the workspace. |
+
+### Background job methods
+
+| Method signature | Description |
+|---|---|
+| `createJob(input: CreateJobInput): Promise<ZilMateJob>` | Creates a new background job. Registers a QStash schedule when cron config is present. |
+| `listJobs(input?: ListJobsOptions): Promise<ZilMateJob[]>` | Lists jobs, optionally filtered by status or tag. |
+| `getJob(id: string): Promise<ZilMateJob \| null>` | Retrieves a single job by ID. |
+| `getJobLogs(id: string): Promise<JobLog[]>` | Returns execution logs for a job. |
+| `runJob(id: string): Promise<ZilMateJob>` | Runs a specific job immediately, regardless of schedule. |
+| `runDueJobs(): Promise<number>` | Scans all jobs and runs any that are due. Returns the number executed. |
+| `cancelJob(id: string): Promise<ZilMateJob \| null>` | Cancels a scheduled or running job. |
+| `handleJobWebhook(input: { jobId: string; secret?: string }, expectedSecret?: string): Promise<ZilMateJob>` | Handles an inbound webhook payload from QStash to trigger a job. |
+
+### Voice methods
+
+| Method signature | Description |
+|---|---|
+| `startVoiceSession(input?: ZilMateVoiceSessionOptions): Promise<ZilMateVoiceSessionResult>` | Opens a Deepgram voice agent session. Inherits `onProgress` from `createZilMate()` unless overridden in `input`. |
+| `getVoiceConfig(): ZilMateVoiceConfig` | Returns the current voice configuration, including `listenModel` and provider settings. |
+
+---
+
+## Standalone exports
+
+In addition to `createZilMate()`, `zilmate/server` exports several standalone functions you can call without creating an instance:
+
+```ts
+import {
+  createZilMate,
+  chat,
+  help,
+  post,
+  research,
+  image,
+  applyStoredModelSelections,
+  buildSituationBrief,
+  loadSessionHandoff,
+  clearSessionApprovals,
+} from 'zilmate/server';
+```
+
+| Export | Description |
+|---|---|
+| `chat(input, options?)` | Standalone chat call. Accepts `ZilMateTextInput` and optional `ZilMateOptions`. |
+| `help(input, options?)` | Standalone quick-help call. |
+| `post(input, options?)` | Standalone post/copywriter call. |
+| `research(input, options?)` | Standalone research call. |
+| `image(input)` | Standalone image generation call. Accepts `ZilMatePromptInput & ImageGenerationOptions`. |
+| `applyStoredModelSelections()` | Loads persisted model overrides from `models.json` and applies them before agent calls. |
+| `buildSituationBrief(sessionId)` | Builds a situation brief without a full `createZilMate()` instance. |
+| `loadSessionHandoff(sessionId)` | Loads a saved handoff by session ID. |
+| `clearSessionApprovals()` | Clears any cached approval decisions for the current session. |
+
+---
+
+## Production tips
+
+<Tip>
+  Always set the `ZILMATE_WORKSPACE` environment variable to a durable directory path in production. This controls where notebooks, long-term memory, model selections, and job logs are stored. Without it, ZilMate defaults to `~/Downloads/ZilMate`.
+</Tip>
+
+<Tip>
+  Keep `AI_GATEWAY_API_KEY` server-side only — never expose it to the browser. All `zilmate/server` imports are Node.js-only and will not bundle into client code when used inside `app/api/` routes or server components.
+</Tip>
+
+<Note>
+  Call `applyStoredModelSelections()` once at startup in long-lived server processes (workers, queue consumers) to ensure any model overrides you've persisted via `saveModelSelection()` are active before the first agent call.
+</Note>
+
+<Note>
+  Enable Redis (via Upstash) in multi-instance deployments so that memory and job state are shared across all server instances instead of being stored only in local files.
+</Note>

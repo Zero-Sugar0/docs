@@ -1,0 +1,151 @@
+---
+title: "Selecting AI Models Per Agent in ZilMate"
+sidebarTitle: "Model Selection"
+description: "Override the default model for any ZilMate agent programmatically or via CLI. Selections persist to workspace config and apply automatically on startup."
+---
+
+Every ZilMate agent — the Manager, coding agent, help agent, image director, and more — can run a different underlying AI model. You might want the most capable model for the Manager to handle complex orchestration, a fast and cost-efficient model for the help agent, and a specialist vision model for image work. ZilMate stores these selections in a workspace config file and applies them automatically before each agent call.
+
+---
+
+## CLI method
+
+In the interactive CLI, run the model picker from any session:
+
+```bash
+zilmate models
+```
+
+Or trigger the picker mid-conversation with a slash command:
+
+```
+/model pick
+```
+
+The picker lists available models for each agent role and writes your selections to `models.json`.
+
+---
+
+## SDK method
+
+In code, use `saveModelSelection()` to persist a model for a specific agent role. Call `applyStoredModelSelections()` once at startup to load all saved selections before the first agent call.
+
+```ts
+import { applyStoredModelSelections, saveModelSelection } from 'zilmate/server';
+
+// Apply any previously saved selections before agent calls
+await applyStoredModelSelections();
+
+// Override the manager model
+await saveModelSelection('manager', 'anthropic/claude-sonnet-4');
+
+// Override the coding agent model
+await saveModelSelection('coding', 'openai/gpt-5.4-mini');
+```
+
+Both functions are exported directly from `zilmate/server` — you do not need a `createZilMate()` instance to call them.
+
+---
+
+## Agent key reference
+
+Use the following keys when calling `saveModelSelection(agentKey, modelId)`:
+
+| Agent key | Agent | Environment variable override |
+|---|---|---|
+| `manager` | Main orchestrator / Manager | `ZILO_MANAGER_MODEL` |
+| `coding` | Coding agent, appBuilder, qaIntegration | `ZILO_CODING_MODEL` |
+| `help` | Quick help agent | `ZILO_HELP_MODEL` |
+| `post` | Post / copywriter agent | `ZILO_POST_MODEL` |
+| `research` | Docs and web research agent | `ZILO_MANAGER_MODEL` |
+| `chat` | Conversational chat agent | `ZILO_HELP_MODEL` |
+| `imageOpenai` | OpenAI image generation model | `ZILO_IMAGE_OPENAI_MODEL` |
+| `imageGemini` | Gemini image generation model | `ZILO_IMAGE_GEMINI_MODEL` |
+| `screenshotVision` | Screenshot vision model | `ZILMATE_SCREENSHOT_MODEL` |
+| `deptStrategy` | Strategy department swarm agents | `ZILMATE_DEPT_STRATEGY_MODEL` |
+| `deptEngineering` | Engineering department swarm agents | `ZILMATE_DEPT_ENGINEERING_MODEL` |
+| `deptGrowth` | Growth department swarm agents | `ZILMATE_DEPT_GROWTH_MODEL` |
+| `deptOperations` | Operations department swarm agents | `ZILMATE_DEPT_OPERATIONS_MODEL` |
+| `deptData` | Data department swarm agents | `ZILMATE_DEPT_DATA_MODEL` |
+| `deptSecurity` | Security department swarm agents | `ZILMATE_DEPT_SECURITY_MODEL` |
+| `deptRevenue` | Revenue department swarm agents | `ZILMATE_DEPT_REVENUE_MODEL` |
+
+---
+
+## Where selections are stored
+
+Selections are written to `models.json` inside your workspace config directory:
+
+```
+~/Downloads/ZilMate/config/models.json
+```
+
+Set the `ZILMATE_WORKSPACE` environment variable to change the root:
+
+```env
+ZILMATE_WORKSPACE=/var/data/zilmate
+# → selections stored at /var/data/zilmate/config/models.json
+```
+
+The file format looks like this:
+
+```json
+{
+  "roles": {
+    "manager": "anthropic/claude-sonnet-4",
+    "coding": "openai/gpt-5.4-mini"
+  },
+  "updatedAt": "2025-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+## Environment variable overrides
+
+You can override model selections without touching `models.json` by setting environment variables directly. These take precedence over stored selections:
+
+```env
+ZILO_MANAGER_MODEL=anthropic/claude-sonnet-4
+ZILO_CODING_MODEL=openai/gpt-5.4-mini
+ZILO_HELP_MODEL=openai/gpt-4o-mini
+ZILO_IMAGE_OPENAI_MODEL=dall-e-3
+ZILO_IMAGE_GEMINI_MODEL=imagen-3.0-generate-002
+```
+
+Environment variables are useful in CI/CD pipelines or containerised deployments where you want model choices to be configuration rather than stored state.
+
+---
+
+## Example: configuring models at startup
+
+Use this pattern in a Next.js server component initialiser, a worker entry point, or any long-lived process:
+
+```ts
+import { applyStoredModelSelections, saveModelSelection, createZilMate } from 'zilmate/server';
+
+async function initZilMate() {
+  // Load any previously saved selections
+  await applyStoredModelSelections();
+
+  // Optionally update selections for this deployment
+  await saveModelSelection('manager', 'anthropic/claude-sonnet-4');
+  await saveModelSelection('coding', 'openai/gpt-5.4-mini');
+
+  // Now create an instance — agents will use the configured models
+  return createZilMate({ sessionId: 'worker-session' });
+}
+
+const zilmate = await initZilMate();
+const { text } = await zilmate.manager({ message: 'Run due jobs and summarise results.' });
+```
+
+---
+
+<Note>
+  Call `applyStoredModelSelections()` **before** the first agent call in every process. The function is idempotent — calling it multiple times is safe, but omitting it means stored selections are not applied and agents fall back to their compiled defaults.
+</Note>
+
+<Tip>
+  In serverless environments (Vercel Edge or Lambda), prefer environment variable overrides over `models.json` selections. Serverless functions start fresh on each invocation, and file-based config requires a durable filesystem mount to persist between calls.
+</Tip>

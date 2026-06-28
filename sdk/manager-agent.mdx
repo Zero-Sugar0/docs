@@ -1,0 +1,225 @@
+---
+title: "Manager Agent: Orchestrate Tasks with ZilMate"
+sidebarTitle: "Manager Agent"
+description: "The Manager agent routes any task to the right specialist. Learn how to call manager(), stream progress events, use situational awareness, and resume sessions with handoffs."
+---
+
+The Manager is ZilMate's CEO-level orchestrator. When you call `zilmate.manager()`, you hand off your task to an agent that surveys the available tools, assesses the situation, and decides whether to act directly — searching the web, reading memory, running jobs — or delegate to a specialist like the coding agent, image director, or goal planner. The Manager never writes code itself; it coordinates, delegates, and synthesizes.
+
+---
+
+## Basic usage
+
+Call `zilmate.manager()` with a `{ message }` input. It returns `{ text }` — the final synthesized response after all tool calls and delegation are complete.
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'user-42' });
+
+const { text } = await zilmate.manager({
+  message: 'Summarize my open jobs and suggest next steps.',
+});
+
+console.log(text);
+```
+
+You can also pass a `{ prompt }` input interchangeably:
+
+```ts
+const { text } = await zilmate.manager({
+  prompt: 'Check git status and tell me what files have changed.',
+});
+```
+
+---
+
+## Streaming progress events
+
+Attach an `onProgress` handler to `createZilMate()` to receive live events as the Manager works. Each event carries a `type` and a human-readable `label`.
+
+```ts
+import { createZilMate } from 'zilmate/server';
+import type { ProgressEvent } from 'zilmate/server';
+
+const zilmate = createZilMate({
+  sessionId: 'user-42',
+  onProgress: (event: ProgressEvent) => {
+    // event.type — e.g. 'tool:start', 'tool:end', 'search:start', 'fetch:start'
+    // event.label — e.g. 'Searching codebase', 'Reviewing working tree'
+    console.log(`[${event.type}] ${event.label}`);
+  },
+});
+
+const { text } = await zilmate.manager({ message: 'Research Vercel edge runtime limits.' });
+```
+
+---
+
+## Situational awareness
+
+Before handing the Manager a complex task, call `zilmate.situation()` to give it a complete picture of the current environment. It returns a structured brief covering git state, recent jobs, active model selections, memory entries, and workspace layout.
+
+```ts
+const brief = await zilmate.situation({ sessionId: 'user-42' });
+
+console.log(brief.git);        // current branch, uncommitted changes
+console.log(brief.recentJobs); // latest background job results
+console.log(brief.models);     // which model each agent is using
+console.log(brief.memory);     // recent long-term memory entries
+console.log(brief.workspace);  // resolved workspace directory paths
+```
+
+Pass the brief's contents into your manager message to anchor the orchestrator:
+
+```ts
+const brief = await zilmate.situation();
+const { text } = await zilmate.manager({
+  message: `Current state:\n${JSON.stringify(brief, null, 2)}\n\nGiven this, plan the next release steps.`,
+});
+```
+
+---
+
+## Session handoffs
+
+Use `zilmate.handoff()` to resume work seamlessly across separate server invocations or after a process restart. The Manager saves a handoff before ending a long task; load it at the start of the next session.
+
+```ts
+const handoff = await zilmate.handoff({ sessionId: 'user-42' });
+
+if (handoff) {
+  const { text } = await zilmate.manager({
+    message: `Continue from handoff:\n${handoff.summary}\nNext: ${handoff.nextActions.join(', ')}`,
+  });
+  console.log(text);
+}
+```
+
+`handoff` returns `null` when no saved handoff exists for the session. Always check before using the result.
+
+---
+
+## CEO guardrails
+
+The Manager enforces a strict division of labour:
+
+- It **never writes code directly**. Code generation, file edits, and builds are always delegated to the coding agent.
+- It uses tools directly for research, memory, job management, and situational awareness.
+- When the task requires image generation, it delegates to the image director.
+- When the task requires breaking down a goal into a schedule, it delegates to the goal planner.
+
+This design keeps the Manager's context clean and its decisions fast.
+
+---
+
+## Next.js App Router streaming route
+
+The following pattern streams NDJSON progress events to the client as the Manager works, then sends the final response.
+
+```ts
+// app/api/zilmate/route.ts
+import { createZilMate } from 'zilmate/server';
+
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
+export async function POST(request: Request) {
+  const { message, sessionId = 'web-default' } = await request.json();
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (payload: unknown) => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+      };
+
+      const zilmate = createZilMate({
+        sessionId,
+        onProgress: (event) => send({ type: 'progress', event }),
+      });
+
+      try {
+        const { text } = await zilmate.manager({ message });
+        send({ type: 'done', text });
+      } catch (error) {
+        send({
+          type: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-cache',
+    },
+  });
+}
+```
+
+---
+
+## React client hook
+
+Use the following client component to call the streaming route and render progress labels alongside the final reply.
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+
+export function ZilMateChat() {
+  const [input, setInput] = useState('');
+  const [reply, setReply] = useState('');
+  const [progress, setProgress] = useState<string[]>([]);
+
+  async function send() {
+    setProgress([]);
+    const res = await fetch('/api/zilmate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: input, sessionId: 'web-1' }),
+    });
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const chunk = JSON.parse(line);
+        if (chunk.type === 'progress') setProgress((p) => [...p, chunk.event.label]);
+        if (chunk.type === 'done') setReply(chunk.text);
+      }
+    }
+  }
+
+  return (
+    <div>
+      <textarea value={input} onChange={(e) => setInput(e.target.value)} />
+      <button onClick={send}>Ask ZilMate</button>
+      <ul>{progress.map((p) => <li key={p}>{p}</li>)}</ul>
+      <pre>{reply}</pre>
+    </div>
+  );
+}
+```
+
+<Note>
+  The `maxDuration` export on the route is required for Vercel deployments. Long manager tasks can exceed the default 10-second function timeout — set it to `120` or higher depending on your plan.
+</Note>
+
+<Tip>
+  Pair `onProgress` with a live activity indicator in your UI. The Manager emits events like `tool:start`, `fetch:start`, and `search:start` with a label you can display directly to the user, giving them real-time feedback during multi-step operations.
+</Tip>

@@ -1,0 +1,262 @@
+---
+title: "Chat Platform Integrations: Slack, Telegram, and iMessage"
+sidebarTitle: "Chat Integrations"
+description: "Connect ZilMate to Slack, Telegram, and iMessage for conversational AI access. Each platform gets a dedicated chat adapter with session and state memory."
+---
+
+ZilMate ships built-in adapters for Slack, Telegram, and iMessage — connect once and your team can chat with ZilMate agents through familiar messaging interfaces. Every platform adapter is backed by the same Manager agent, session memory, and background job system you get in the CLI and SDK, so your conversations are consistent no matter which surface you use.
+
+---
+
+## Installation
+
+Install the chat SDK and the adapters for the platforms you need:
+
+```bash
+npm install chat @chat-adapter/slack @chat-adapter/telegram chat-adapter-imessage @chat-adapter/state-memory
+```
+
+---
+
+## Platform Setup
+
+<Tabs>
+  <Tab title="Slack">
+    ### Slack
+
+    The `@chat-adapter/slack` package connects ZilMate to a Slack app using Socket Mode. Users can DM the bot directly or mention it in a channel to trigger the agent.
+
+    #### Required credentials
+
+    Before starting, gather the following from your Slack app dashboard:
+
+    - **Bot Token** (`xoxb-…`) — the OAuth bot token with `chat:write` and `app_mentions:read` scopes
+    - **App Token** (`xapp-…`) — required for Socket Mode; enable it under *Settings → Basic Information → App-Level Tokens*
+    - **Signing Secret** — found under *Settings → Basic Information*
+
+    Set these in your `.env`:
+
+    ```env
+    SLACK_BOT_TOKEN=xoxb-your-bot-token
+    SLACK_APP_TOKEN=xapp-your-app-token
+    SLACK_SIGNING_SECRET=your-signing-secret
+    ```
+
+    #### Bridge implementation
+
+    Create a chat bridge file (e.g. `src/chat-bridge.ts`) that wires ZilMate's Manager to the Slack adapter:
+
+    ```ts
+    import { Chat } from 'chat';
+    import { createSlackAdapter } from '@chat-adapter/slack';
+    import { createZilMate } from 'zilmate/server';
+
+    const bot = new Chat({
+      adapters: {
+        slack: createSlackAdapter(),
+      },
+    });
+
+    bot.onNewMention(async (thread, message) => {
+      const zilmate = createZilMate({
+        sessionId: `chat-slack-${message.author.id}`,
+        onProgress: (e) => {
+          if (e.type === 'step') thread.post(`_Thinking: ${e.label}_`);
+        },
+      });
+
+      const { text } = await zilmate.manager({ message: message.text });
+      await thread.post(text);
+    });
+    ```
+
+    #### CLI shortcut
+
+    ```bash
+    zilmate chat --platform slack
+    ```
+
+    #### What you can do
+
+    - Send a DM to the ZilMate bot to start a private conversation
+    - Mention `@ZilMate` in any channel the bot has joined to receive a formatted response inline
+    - Stream thinking progress steps back to the thread while the agent works
+    - State is managed per user via `@chat-adapter/state-memory`, keyed on the Slack user ID in the `sessionId`
+  </Tab>
+
+  <Tab title="Telegram">
+    ### Telegram
+
+    The `@chat-adapter/telegram` package connects ZilMate to a Telegram bot using the Telegram Bot API. It supports both private chats and group mentions.
+
+    #### Required credentials
+
+    Create a bot via [BotFather](https://t.me/BotFather) on Telegram and copy the token it provides.
+
+    ```env
+    TELEGRAM_TOKEN=your-telegram-bot-token
+    ```
+
+    #### Bridge implementation
+
+    ```ts
+    import { Chat } from 'chat';
+    import { createTelegramAdapter } from '@chat-adapter/telegram';
+    import { createZilMate } from 'zilmate/server';
+
+    const bot = new Chat({
+      adapters: {
+        telegram: createTelegramAdapter({ token: process.env.TELEGRAM_TOKEN }),
+      },
+    });
+
+    bot.onNewMention(async (thread, message) => {
+      const zilmate = createZilMate({
+        sessionId: `chat-telegram-${message.author.id}`,
+        onProgress: (e) => {
+          if (e.type === 'step') thread.post(`_Thinking: ${e.label}_`);
+        },
+      });
+
+      const { text } = await zilmate.manager({ message: message.text });
+      await thread.post(text);
+    });
+    ```
+
+    #### CLI shortcut
+
+    ```bash
+    zilmate chat --platform telegram
+    ```
+
+    #### What you can do
+
+    - Chat with ZilMate privately by sending a message directly to the bot
+    - Mention the bot in a group chat to get inline responses visible to all members
+    - Each user gets their own isolated session context via the Telegram user ID in the `sessionId`
+  </Tab>
+
+  <Tab title="iMessage">
+    ### iMessage
+
+    The `chat-adapter-imessage` package connects ZilMate to iMessage by reading from the macOS Messages database. This adapter runs locally on macOS only.
+
+    <Note>
+      iMessage integration requires macOS. The adapter reads from the local Messages SQLite database (`~/Library/Messages/chat.db`). Grant the terminal full disk access in *System Settings → Privacy & Security → Full Disk Access* if the adapter cannot read the database.
+    </Note>
+
+    #### Setup
+
+    No additional credentials are required — the adapter reads your local Messages database directly.
+
+    Install the adapter:
+
+    ```bash
+    npm install chat-adapter-imessage
+    ```
+
+    #### CLI shortcut
+
+    ```bash
+    zilmate chat --platform imessage
+    ```
+
+    #### What you can do
+
+    - Route incoming iMessages to ZilMate for automated responses
+    - Run the adapter locally on your Mac as a background process
+    - Combine with `zilmate jobs worker` to process messages on a schedule
+  </Tab>
+</Tabs>
+
+---
+
+## Unified Bridge: Multiple Platforms at Once
+
+You can register all adapters in a single `Chat` instance to run Slack and Telegram simultaneously from one bridge process:
+
+```ts
+import { Chat } from 'chat';
+import { createSlackAdapter } from '@chat-adapter/slack';
+import { createTelegramAdapter } from '@chat-adapter/telegram';
+import { createZilMate } from 'zilmate/server';
+
+const bot = new Chat({
+  adapters: {
+    slack: createSlackAdapter(),
+    telegram: createTelegramAdapter({ token: process.env.TELEGRAM_TOKEN }),
+  },
+});
+
+bot.onNewMention(async (thread, message) => {
+  const zilmate = createZilMate({
+    sessionId: `chat-${message.adapter.name}-${message.author.id}`,
+    onProgress: (e) => {
+      if (e.type === 'step') thread.post(`_Thinking: ${e.label}_`);
+    },
+  });
+
+  const { text } = await zilmate.manager({ message: message.text });
+  await thread.post(text);
+});
+```
+
+The `message.adapter.name` value automatically namespaces the `sessionId` per platform, so a Slack user and a Telegram user with the same ID never share memory.
+
+---
+
+## Proactive Reporting
+
+Beyond reacting to mentions, ZilMate can push updates to your chat channels on a schedule or when an external event fires.
+
+### Scheduled briefings via QStash
+
+```ts
+const job = await zilmate.createJob({
+  task: 'Research the top 3 trending AI tools today and send a summary to my Telegram.',
+  schedule: '0 9 * * *', // Daily at 9 AM
+});
+```
+
+### Event-driven triggers via Composio
+
+Use `zilmate triggers create` to wire external app events (Stripe, GitHub, HubSpot) to the chat bridge. When the trigger fires, the orchestrator can post the result directly to a channel instead of a desktop notification.
+
+```bash
+zilmate triggers create GITHUB_BRANCH_CREATED_TRIGGER --owner your-org --repo your-repo
+```
+
+---
+
+## Common Features Across All Platforms
+
+<CardGroup cols={2}>
+  <Card title="Per-User Session Isolation" icon="user">
+    Each user gets their own memory and job context. The `sessionId` is namespaced by platform and user ID so conversations never bleed across users.
+  </Card>
+  <Card title="Persistent Memory" icon="database">
+    `@chat-adapter/state-memory` preserves conversation context between sessions. ZilMate remembers what each user asked, decided, and worked on previously.
+  </Card>
+  <Card title="Markdown Formatting" icon="text">
+    Responses are rendered with markdown formatting compatible with each platform's message renderer — bold, code blocks, and lists display correctly on Slack and Telegram.
+  </Card>
+  <Card title="Unified Agent Brain" icon="brain">
+    All platforms share the same ZilMate Manager. Improve the agent's logic once and every chat integration benefits immediately.
+  </Card>
+</CardGroup>
+
+---
+
+## Shared State Between CLI and Chat
+
+The ZilMate CLI and SDK share the same workspace. If a user starts a task over Slack with `sessionId: "alpha"`, you — or they — can resume it in the terminal:
+
+```bash
+zilmate talk --session alpha
+```
+
+---
+
+<Tip>
+  Use a dedicated `sessionId` per platform user — for example, `chat-slack-U012AB3CD` — so each person gets their own isolated memory, job history, and conversation context. Sharing a `sessionId` across multiple users causes their memories to merge.
+</Tip>

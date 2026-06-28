@@ -1,0 +1,196 @@
+---
+title: "Cloud Storage Tools: S3, GCS, and Vercel Blob"
+sidebarTitle: "Cloud Storage"
+description: "Upload, download, list, and delete files across AWS S3, Google Cloud Storage, and Vercel Blob from any ZilMate agent with built-in cloud storage tools."
+---
+
+ZilMate agents can read and write files to cloud storage providers without any manual SDK integration on your part. Set the required environment variables for your provider, describe what you need in plain language, and agents handle authentication, content-type detection, and transfer — selecting the right SDK or falling back to the provider's CLI if the SDK is unavailable.
+
+## Supported providers
+
+<Tabs>
+  <Tab title="AWS S3">
+    ### Required environment variables
+
+    ```env
+    AWS_ACCESS_KEY_ID=your_access_key
+    AWS_SECRET_ACCESS_KEY=your_secret_key
+    AWS_REGION=us-east-1
+    ```
+
+    ### Bundled dependencies
+
+    The following packages are included with ZilMate and do not require separate installation:
+
+    - `@aws-sdk/client-s3`
+    - `@aws-sdk/lib-storage`
+    - `@aws-sdk/s3-request-presigner`
+
+    ### Available operations
+
+    | Operation | Tool | Description |
+    |-----------|------|-------------|
+    | List bucket | `listCloudBucket` | List files in a bucket, optionally filtered by prefix |
+    | Upload file | `uploadFileToCloud` | Upload a local file with automatic Content-Type detection |
+    | Download file | `downloadFileFromCloud` | Download a remote object to a local workspace path |
+    | Delete object | `deleteCloudFile` | Delete a single object or recursively purge a prefix |
+    | Presigned URL | `generateCloudSignedUrl` | Generate a temporary signed URL for GET or PUT access |
+
+    ### Example agent prompts
+
+    ```
+    Upload the file ./reports/summary.pdf to my S3 bucket 'my-reports' at the path reports/2024/summary.pdf
+    ```
+
+    ```
+    Generate a presigned download link for backups/db.sql in my 'my-backups' bucket, valid for 2 hours
+    ```
+  </Tab>
+
+  <Tab title="Google Cloud Storage">
+    ### Required environment variables
+
+    ```env
+    GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+    # or
+    GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+    ```
+
+    ### Bundled dependency
+
+    - `@google-cloud/storage`
+
+    ### Available operations
+
+    | Operation | Tool | Description |
+    |-----------|------|-------------|
+    | List bucket | `listCloudBucket` | List files in a GCS bucket with optional prefix filter |
+    | Upload file | `uploadFileToCloud` | Upload a local file with Content-Type metadata |
+    | Download file | `downloadFileFromCloud` | Download a remote GCS object to your workspace |
+    | Delete object | `deleteCloudFile` | Delete a single file or recursively purge a directory prefix |
+    | Presigned URL | `generateCloudSignedUrl` | Generate a V4 signed URL for read or write access |
+
+    ### Example agent prompt
+
+    ```
+    List everything in the 'build-artifacts' GCS bucket under the prefix 'staging/'
+    ```
+  </Tab>
+
+  <Tab title="Vercel Blob">
+    ### Required environment variable
+
+    ```env
+    BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+    ```
+
+    ### Bundled dependency
+
+    - `@vercel/blob`
+
+    ### Available operations
+
+    | Operation | Tool | Description |
+    |-----------|------|-------------|
+    | List blobs | `listCloudBucket` | List all blobs, optionally filtered by pathname prefix |
+    | Upload (put) | `uploadFileToCloud` | Upload a file with public access and Content-Type preservation |
+    | Download | `downloadFileFromCloud` | Download a blob by pathname or full HTTPS URL |
+    | Delete | `deleteCloudFile` | Delete a single blob or a batch of blobs by prefix |
+    | URL resolution | `generateCloudSignedUrl` | Resolve the persistent public URL for a stored blob |
+
+    <Note>
+      Vercel Blob uses persistent public URLs rather than time-limited signatures. When you ask an agent to generate a "presigned URL" for a Vercel Blob object, it returns the blob's permanent public URL along with a note explaining the difference.
+    </Note>
+
+    ### Example agent prompt
+
+    ```
+    Save the build artifact ./dist/app.zip to Vercel Blob at the path releases/v1.2.0/app.zip
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Tool reference
+
+<AccordionGroup>
+  <Accordion title="listCloudBucket — Browse bucket contents">
+    Lists files in a remote bucket or blob store, with optional prefix filtering and result limits.
+
+    **Parameters**
+    - `provider` _(enum)_ — `s3`, `gcs`, or `vercel-blob`.
+    - `bucketName` _(string, optional)_ — required for S3 and GCS; ignored for Vercel Blob.
+    - `prefix` _(string, optional)_ — filter results to a specific folder path (e.g. `"backups/"`).
+    - `limit` _(number, default `100`)_ — maximum files to return (max 5000).
+  </Accordion>
+
+  <Accordion title="uploadFileToCloud — Upload a local file">
+    Uploads a local workspace file to a remote object store with automatic Content-Type detection. Uses the official SDK first and falls back to the provider's CLI (`aws s3 cp`, `gsutil cp`, `vercel blob put`) if the SDK is unavailable.
+
+    **Parameters**
+    - `provider` _(enum)_ — `s3`, `gcs`, or `vercel-blob`.
+    - `localFilePath` _(string)_ — relative or absolute path to the local file.
+    - `bucketName` _(string, optional)_ — required for S3 and GCS.
+    - `destinationKey` _(string)_ — the destination path inside the bucket (e.g. `"backups/db.sql"`).
+  </Accordion>
+
+  <Accordion title="downloadFileFromCloud — Download a remote file">
+    Downloads a file from cloud storage to a local workspace path. Creates intermediate directories automatically.
+
+    **Parameters**
+    - `provider` _(enum)_ — `s3`, `gcs`, or `vercel-blob`.
+    - `bucketName` _(string, optional)_ — required for S3 and GCS.
+    - `destinationKey` _(string)_ — the remote key, pathname, or full HTTPS URL (Vercel Blob).
+    - `localFilePath` _(string)_ — local path to save the downloaded file.
+  </Accordion>
+
+  <Accordion title="deleteCloudFile — Delete an object or prefix">
+    Deletes a single file or, with `recursive: true`, purges all objects under a prefix. Uses batch delete for S3 (up to 1000 objects per request).
+
+    **Parameters**
+    - `provider` _(enum)_ — `s3`, `gcs`, or `vercel-blob`.
+    - `bucketName` _(string, optional)_ — required for S3 and GCS.
+    - `destinationKey` _(string)_ — the remote key, pathname, or URL to delete.
+    - `recursive` _(boolean, optional)_ — recursively delete all objects under this prefix.
+
+    <Warning>
+      Delete operations are irreversible. The agent will request your approval via the confirmation firewall before performing any deletion.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="generateCloudSignedUrl — Create a temporary access URL">
+    Generates a time-limited presigned URL (S3 or GCS) or resolves the public URL (Vercel Blob) for a specific object.
+
+    **Parameters**
+    - `provider` _(enum)_ — `s3`, `gcs`, or `vercel-blob`.
+    - `bucketName` _(string, optional)_ — required for S3 and GCS.
+    - `destinationKey` _(string)_ — the object key or pathname.
+    - `expiresIn` _(number, default `3600`)_ — expiration window in seconds.
+    - `operation` _(enum, default `read`)_ — `read` (GET) or `write` (PUT).
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Provider selection
+
+Agents automatically select the provider based on which credentials are present in your environment. If you have multiple providers configured, specify the provider explicitly in your message:
+
+```ts
+import { zilmate } from 'zilmate'
+
+// Upload a report to S3
+await zilmate.manager({
+  message: 'Upload ./output/report.pdf to S3 bucket "my-reports" at reports/weekly/report.pdf',
+})
+
+// Ask the coding agent to persist build artifacts to Vercel Blob
+await zilmate.manager({
+  message: 'After the build completes, save dist/bundle.js to Vercel Blob at releases/latest/bundle.js',
+})
+```
+
+<Tip>
+  All three providers support a fallback execution path. If the Node.js SDK fails or is not importable, the agent automatically retries using the corresponding CLI tool (`aws`, `gsutil`, or `vercel`) if it is installed on your system PATH.
+</Tip>

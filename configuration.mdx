@@ -1,0 +1,203 @@
+---
+title: "Configure ZilMate: API Keys and Environment Variables"
+sidebarTitle: "Configuration"
+description: "Set up your AI Gateway key, optional integrations, model overrides, and workspace path to get ZilMate running in any environment."
+---
+
+ZilMate reads its configuration from environment variables, which you can set through the interactive setup wizard or by writing a `.env` file manually. This page documents every supported variable — required credentials, optional integrations, voice settings, model overrides, and feature flags — so you can configure ZilMate precisely for your environment.
+
+## Setup wizard vs. manual configuration
+
+Run the interactive wizard once per environment to be guided through every option:
+
+```bash
+zilmate setup
+```
+
+The wizard prompts for each key in order, validates what you enter, and writes a `.env` file to your workspace root. You can re-run it at any time to update values; it merges changes without overwriting settings you skip.
+
+For CI pipelines and automated provisioning, pass flags directly instead of running interactively:
+
+```bash
+zilmate setup --yes --ai-gateway-key <key> --jobs-enabled true
+```
+
+If you prefer to manage configuration yourself, create a `.env` file at your project root (or export variables in your shell) using the reference below.
+
+---
+
+## Required variables
+
+<ParamField body="AI_GATEWAY_API_KEY" type="string" required>
+  Your AI Gateway API key. This credential authenticates every model call made by the manager and all specialist agents. ZilMate will not start without it.
+</ParamField>
+
+<ParamField body="ZILMATE_USER_ID" type="string" required>
+  A unique identifier for the current user session. Used to scope memory, jobs, and Composio state to a specific user. Generate a stable value once (e.g. `zilmate-your-name-abc123`) and reuse it across restarts.
+</ParamField>
+
+---
+
+## Optional integrations
+
+<ParamField body="COMPOSIO_API_KEY" type="string">
+  Enables 100+ external app connectors — GitHub, Gmail, Slack, Notion, Stripe, Supabase, and more. When set, ZilMate registers a stable local user session and generates OAuth auth links for any app you connect. Without this key, Composio tool calls are disabled.
+</ParamField>
+
+<ParamField body="TAVILY_API_KEY" type="string">
+  Enables live web research inside the `research()` SDK method and any agent that performs deep-web lookups. Without this key, research falls back to local document search only.
+</ParamField>
+
+<ParamField body="UPSTASH_REDIS_REST_URL" type="string">
+  The REST URL for your Upstash Redis database. When configured alongside `UPSTASH_REDIS_REST_TOKEN`, chat sessions, memory, scratchpads, and job state are persisted in Redis instead of the local `.zilo-manager/` directory. Required for multi-instance deployments.
+</ParamField>
+
+<ParamField body="UPSTASH_REDIS_REST_TOKEN" type="string">
+  The REST token for your Upstash Redis database. Must be set together with `UPSTASH_REDIS_REST_URL`.
+</ParamField>
+
+<ParamField body="UPSTASH_QSTASH_TOKEN" type="string">
+  Enables hosted background job scheduling via Upstash QStash. With QStash, scheduled jobs execute even when your local machine is offline or your server is sleeping. Requires `ZILMATE_PUBLIC_JOB_WEBHOOK_URL` to be set.
+</ParamField>
+
+<ParamField body="ZILMATE_PUBLIC_JOB_WEBHOOK_URL" type="string">
+  The publicly reachable URL that QStash calls when a scheduled job fires. Must point to your `/api/jobs/webhook` route (or equivalent). During local development, use `zilmate jobs listen --tunnel` to generate a Cloudflare quick-tunnel URL automatically.
+</ParamField>
+
+<ParamField body="ZILMATE_JOB_WEBHOOK_SECRET" type="string">
+  A shared secret used to verify the HMAC signature on incoming QStash webhook requests. Pass it to `handleJobWebhook(body, process.env.ZILMATE_JOB_WEBHOOK_SECRET)` in your webhook route.
+</ParamField>
+
+<ParamField body="DEEPGRAM_API_KEY" type="string">
+  Enables real-time voice features. Required for `zilmate voice live`, `zilmate voice turn`, and the SDK's `startVoiceSession()`. Without this key, all voice commands are disabled.
+</ParamField>
+
+---
+
+## Voice configuration
+
+These variables control how ZilMate's voice stack behaves. They are only relevant when `DEEPGRAM_API_KEY` is set.
+
+<ParamField body="ZILMATE_VOICE_ENABLED" type="boolean" default="false">
+  Set to `true` to enable voice features globally. You can also toggle voice at runtime with `zilmate voice enable` and `zilmate voice disable`.
+</ParamField>
+
+<ParamField body="ZILMATE_VOICE_MODE" type="string" default="agent">
+  The voice interaction mode. `agent` enables a full conversational agent loop with barge-in support.
+</ParamField>
+
+<ParamField body="ZILMATE_VOICE_LISTEN_MODEL" type="string" default="flux-general-en">
+  The Deepgram speech-to-text model used to transcribe your microphone input.
+</ParamField>
+
+<ParamField body="ZILMATE_VOICE_TTS_MODEL" type="string" default="aura-2-thalia-en">
+  The Deepgram text-to-speech model used to synthesize spoken replies.
+</ParamField>
+
+<ParamField body="ZILMATE_VOICE_BARGE_IN" type="boolean" default="true">
+  When `true`, speaking while ZilMate is reading a reply interrupts playback immediately and starts a new listening cycle.
+</ParamField>
+
+---
+
+## Model overrides
+
+ZilMate assigns a default model to each agent role. Override these to use a different model from your gateway.
+
+<ParamField body="ZILO_MANAGER_MODEL" type="string" default="minimax/minimax-m3">
+  The model used by the Supervisor Manager agent for orchestration and planning.
+</ParamField>
+
+<ParamField body="ZILO_HELP_MODEL" type="string" default="alibaba/qwen3.7-plus">
+  The model used by the Quick Help agent for fast troubleshooting and usage guidance.
+</ParamField>
+
+<ParamField body="ZILO_IMAGE_DEFAULT_PROVIDER" type="string" default="openai">
+  The default image generation provider. Accepted values: `openai`, `gemini`.
+</ParamField>
+
+<ParamField body="ZILO_IMAGE_OPENAI_MODEL" type="string" default="openai/gpt-image-2">
+  The OpenAI image model used when `ZILO_IMAGE_DEFAULT_PROVIDER=openai`.
+</ParamField>
+
+---
+
+## Workspace path
+
+<ParamField body="ZILMATE_WORKSPACE" type="string">
+  An absolute path to a custom directory where ZilMate stores its notebook, knowledge base, skills, model selections, and job state. Defaults to `~/Downloads/ZilMate` when not set. Set this variable in server environments where the home directory is ephemeral or not writable.
+</ParamField>
+
+---
+
+## Feature flags
+
+<ParamField body="ZILMATE_JOBS_ENABLED" type="boolean" default="false">
+  Set to `true` to enable the background jobs subsystem. When disabled, calls to `createJob()` and `runDueJobs()` are no-ops and the `zilmate jobs` commands are inactive.
+</ParamField>
+
+<ParamField body="ZILMATE_TRIGGER_WORKFLOWS_ENABLED" type="boolean" default="false">
+  Set to `true` to enable Composio event-triggered workflows. Requires `COMPOSIO_API_KEY`. When enabled, `zilmate triggers listen` starts a local event stream and incoming webhook events can fire agent workflows automatically.
+</ParamField>
+
+---
+
+## Full `.env.example`
+
+Copy this template to `.env` at your project root and fill in the values you need. Every optional variable can be left blank to disable the corresponding feature.
+
+```env
+# ── Required ──────────────────────────────────────────────────────────────────
+AI_GATEWAY_API_KEY=
+ZILMATE_USER_ID=
+
+# ── Optional integrations ─────────────────────────────────────────────────────
+COMPOSIO_API_KEY=
+TAVILY_API_KEY=
+
+# ── Redis (cloud memory & jobs) ───────────────────────────────────────────────
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# ── Background jobs ───────────────────────────────────────────────────────────
+ZILMATE_JOBS_ENABLED=false
+UPSTASH_QSTASH_TOKEN=
+ZILMATE_PUBLIC_JOB_WEBHOOK_URL=
+ZILMATE_JOB_WEBHOOK_SECRET=
+ZILMATE_TRIGGER_WORKFLOWS_ENABLED=false
+
+# ── Voice (Deepgram) ──────────────────────────────────────────────────────────
+DEEPGRAM_API_KEY=
+ZILMATE_VOICE_ENABLED=false
+ZILMATE_VOICE_MODE=agent
+ZILMATE_VOICE_LISTEN_MODEL=flux-general-en
+ZILMATE_VOICE_LISTEN_VERSION=v2
+ZILMATE_VOICE_TTS_MODEL=aura-2-thalia-en
+ZILMATE_VOICE_LANGUAGE=en
+ZILMATE_VOICE_LANGUAGE_HINTS=
+ZILMATE_VOICE_BARGE_IN=true
+ZILMATE_VOICE_PLAYBACK_MODE=stream
+ZILMATE_VOICE_DEBUG=false
+ZILMATE_VOICE_INPUT_DEVICE=
+
+# ── Desktop context ───────────────────────────────────────────────────────────
+ZILMATE_SCREENSHOT_MODEL=google/gemini-3.1-flash-lite
+ZILMATE_CAMERA_DEVICE=
+
+# ── File system ───────────────────────────────────────────────────────────────
+ZILMATE_FILE_ROOTS=
+ZILMATE_WORKSPACE=
+
+# ── Model overrides ───────────────────────────────────────────────────────────
+ZILO_MANAGER_MODEL=minimax/minimax-m3
+ZILO_HELP_MODEL=alibaba/qwen3.7-plus
+ZILO_POST_MODEL=alibaba/qwen3.7-plus
+ZILO_IMAGE_DEFAULT_PROVIDER=openai
+ZILO_IMAGE_OPENAI_MODEL=openai/gpt-image-2
+ZILO_IMAGE_GEMINI_MODEL=google/gemini-3-pro-image
+ZILO_IMAGE_MODEL=
+```
+
+<Warning>
+  Never expose `AI_GATEWAY_API_KEY` to the browser. Keep all `createZilMate()` calls on the server side — in API routes, server components, or background workers. If you need to call ZilMate from a client component, proxy the request through a server route as shown in the [Quickstart](/quickstart).
+</Warning>

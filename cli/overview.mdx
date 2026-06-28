@@ -1,0 +1,71 @@
+---
+title: "ZilMate CLI: Command-Line AI Agent Interface"
+sidebarTitle: "Overview"
+description: "The zilmate CLI gives you an interactive shell, one-shot commands, and full access to swarm agents, memory, jobs, and voice from your terminal."
+---
+
+The `zilmate` CLI is the fastest way to interact with ZilMate agents from your terminal. Run one-shot tasks, start persistent interactive sessions, and manage memory and jobs — all without writing a single line of code. Every feature available in the SDK is reachable from the command line.
+
+## Installation
+
+Install the CLI globally with npm:
+
+```bash
+npm install -g zilmate
+```
+
+After installation, run the setup wizard to configure your credentials:
+
+```bash
+zilmate setup
+```
+
+To see all available commands at any time, run:
+
+```bash
+zilmate --help
+```
+
+<Note>
+Running `zilmate` with no arguments opens the status dashboard and guided launcher menu. If the AI Gateway key is missing, the launcher offers to walk you through setup before starting a chat.
+</Note>
+
+## Command Overview
+
+The table below lists every top-level command and what it does.
+
+| Command | Description |
+|---|---|
+| `zilmate setup` | Interactive configuration wizard — set API keys, voice, jobs, and more |
+| `zilmate doctor` | Health-check all configured services and report OK / WARN / ERROR |
+| `zilmate talk` | Start a persistent interactive chat session with the Manager agent |
+| `zilmate manager "<task>"` | Run a one-shot task through the Manager agent and exit |
+| `zilmate swarm "<goal>"` | Launch a full Digital Corporation multi-agent swarm workflow |
+| `zilmate jobs create/worker/list` | Create cron-scheduled jobs, run the local worker, and list job history |
+| `zilmate memory remember/recall/list` | Store facts, search memories, and list all stored entries |
+| `zilmate models` | Browse available AI models and assign them to agent targets |
+| `zilmate triggers listen` | Stream real-time Composio trigger events to the terminal |
+| `zilmate update` | Update the global CLI to the latest published version |
+
+## Command Pages
+
+<CardGroup cols={2}>
+  <Card title="setup / doctor" icon="wrench" href="/cli/setup-doctor">
+    Configure API keys interactively and verify every service is healthy.
+  </Card>
+  <Card title="talk / manager" icon="comments" href="/cli/talk-manager">
+    Persistent interactive chat and one-shot task execution.
+  </Card>
+  <Card title="swarm" icon="sitemap" href="/cli/swarm">
+    Full Digital Corporation multi-agent workflows for complex business goals.
+  </Card>
+  <Card title="jobs" icon="clock" href="/cli/jobs">
+    Create, schedule, run, and monitor background automation tasks.
+  </Card>
+  <Card title="memory" icon="brain" href="/cli/memory">
+    Store facts, recall memories by semantic search, and manage entries.
+  </Card>
+  <Card title="models" icon="microchip" href="/cli/models">
+    Browse the AI Gateway model catalogue and assign models to agents.
+  </Card>
+</CardGroup>

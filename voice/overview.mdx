@@ -1,0 +1,198 @@
+---
+title: "Voice Control: Real-Time Speech with Deepgram and ZilMate"
+sidebarTitle: "Voice Control"
+description: "Enable real-time voice input and text-to-speech in ZilMate using Deepgram. Configure listen models, TTS voices, barge-in, and language settings."
+---
+
+ZilMate includes a real-time voice layer powered by Deepgram — you can speak to the agent and hear spoken responses, either in the CLI or programmatically via the SDK. The voice stack handles microphone capture, speech-to-text transcription, agent processing, and text-to-speech playback in a single continuous loop.
+
+## Prerequisites
+
+Before enabling voice, make sure you have the following in place:
+
+1. A valid **Deepgram API key** — set as `DEEPGRAM_API_KEY` in your `.env` file.
+2. **`ffmpeg`** installed on your system path. On macOS, run `brew install ffmpeg`. On Windows, run `winget install Gyan.FFmpeg`.
+3. Voice explicitly enabled — set `ZILMATE_VOICE_ENABLED=true` in your `.env` file, or run `zilmate voice enable`.
+
+Verify your setup at any time with the voice doctor:
+
+```bash
+zilmate voice doctor
+```
+
+---
+
+## CLI Voice Mode
+
+Once voice is enabled, launch a hands-free voice session directly from the terminal. The agent listens via your microphone, transcribes your speech, processes it through the manager, and plays back a spoken TTS response.
+
+```bash
+# Start a full interactive voice session
+zilmate voice live
+
+# Run a single voice query and exit
+zilmate voice turn "What's my job status?"
+```
+
+You can also trigger a microphone cycle from inside an active `zilmate talk` session by typing `/voice` at the prompt.
+
+Use the following commands to manage your voice setup from the CLI:
+
+```bash
+zilmate voice setup        # Configure voice parameters interactively
+zilmate voice enable       # Enable voice globally
+zilmate voice disable      # Disable voice globally
+zilmate voice devices      # List detected audio input devices
+zilmate voice config       # View active voice configuration
+zilmate voice doctor       # Check Deepgram connectivity and microphone detection
+zilmate voice agent-probe  # Test the Deepgram agent pipeline end-to-end
+```
+
+---
+
+## SDK Voice Session
+
+Call `startVoiceSession()` to open a live voice session programmatically. Retrieve the active voice configuration with `getVoiceConfig()`.
+
+### Starting a voice session
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'voice-session-1' });
+
+const session = await zilmate.startVoiceSession({
+  onProgress: (e) => console.log(e.label),
+});
+
+// The session exposes Deepgram agent wiring
+console.log(session.config.listenModel);
+
+// Close the session when finished
+await session.close?.();
+```
+
+### Retrieving voice configuration
+
+Use `getVoiceConfig()` to inspect the resolved voice settings at runtime:
+
+```ts
+const config = await zilmate.getVoiceConfig();
+
+console.log(config.listenModel);   // e.g. 'flux-general-en'
+console.log(config.ttsModel);      // e.g. 'aura-2-thalia-en'
+console.log(config.language);      // e.g. 'en'
+console.log(config.barge_in);      // e.g. true
+console.log(config.playbackMode);  // e.g. 'stream'
+```
+
+### ZilMateVoiceConfig type
+
+The session and config methods resolve to a `ZilMateVoiceConfig` object with the following fields:
+
+<ResponseField name="listenModel" type="string">
+  The Deepgram speech-to-text model used to transcribe your speech (e.g. `flux-general-en`).
+</ResponseField>
+
+<ResponseField name="listenVersion" type="string">
+  The version of the STT listen model (e.g. `v2`).
+</ResponseField>
+
+<ResponseField name="ttsModel" type="string">
+  The Deepgram Aura TTS voice model used for spoken responses (e.g. `aura-2-thalia-en`).
+</ResponseField>
+
+<ResponseField name="language" type="string">
+  The primary language code for recognition and synthesis (e.g. `en`).
+</ResponseField>
+
+<ResponseField name="barge_in" type="boolean">
+  Whether the user can interrupt the agent mid-speech to speak again.
+</ResponseField>
+
+<ResponseField name="playbackMode" type="string">
+  How TTS audio is delivered — either `stream` (low-latency) or `buffer` (complete before playback).
+</ResponseField>
+
+---
+
+## Configuration
+
+Set these environment variables in your `.env` file to control every aspect of the voice layer.
+
+<ParamField path="DEEPGRAM_API_KEY" type="string" required>
+  Your Deepgram API key. Required for both STT transcription and TTS playback. Obtain one at [deepgram.com](https://deepgram.com).
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_ENABLED" type="boolean" default="false">
+  Master toggle for the voice layer. Set to `true` to enable voice input and TTS output.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_MODE" type="string" default="agent">
+  Voice pipeline mode. Currently `agent` is the supported mode — the full Deepgram agent wiring is active with bidirectional audio.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_LISTEN_MODEL" type="string" default="flux-general-en">
+  The Deepgram STT model used to transcribe your microphone input. Example: `flux-general-en`.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_LISTEN_VERSION" type="string" default="v2">
+  The version of the STT listen model. Example: `v2`.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_TTS_MODEL" type="string" default="aura-2-thalia-en">
+  The Deepgram Aura TTS voice model for agent responses. Example: `aura-2-thalia-en`.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_LANGUAGE" type="string" default="en">
+  Primary language code passed to Deepgram for speech recognition and synthesis. Example: `en`.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_LANGUAGE_HINTS" type="string">
+  Optional comma-separated language hints for multi-language environments. Helps Deepgram disambiguate when speakers switch languages mid-conversation.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_BARGE_IN" type="boolean" default="true">
+  Allow the user to interrupt the agent mid-speech. When `true`, speaking while the agent is talking immediately halts TTS playback and begins a new recognition cycle.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_PLAYBACK_MODE" type="string" default="stream">
+  Controls how TTS audio is delivered. Use `stream` for lower latency (audio plays as it arrives) or `buffer` to wait for the full response before playing.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_INPUT_DEVICE" type="string">
+  Pin voice capture to a specific microphone device index. Leave empty to use the system default. Run `zilmate voice devices` to list available device indices.
+</ParamField>
+
+<ParamField path="ZILMATE_VOICE_DEBUG" type="boolean" default="false">
+  Enable verbose Deepgram debug logging. Useful for diagnosing audio device detection issues, WebSocket connection problems, or STT recognition failures.
+</ParamField>
+
+---
+
+## Supported Languages
+
+Deepgram supports 30+ languages for speech recognition via the `ZILMATE_VOICE_LANGUAGE` code and optional `ZILMATE_VOICE_LANGUAGE_HINTS`. Set `ZILMATE_VOICE_LANGUAGE` to a BCP-47 language code (for example, `en` for English, `es` for Spanish, `fr` for French) and provide hints when your users may switch between languages in the same session.
+
+---
+
+## Example `.env` voice block
+
+```env
+DEEPGRAM_API_KEY=your_deepgram_key
+ZILMATE_VOICE_ENABLED=true
+ZILMATE_VOICE_MODE=agent
+ZILMATE_VOICE_LISTEN_MODEL=flux-general-en
+ZILMATE_VOICE_LISTEN_VERSION=v2
+ZILMATE_VOICE_TTS_MODEL=aura-2-thalia-en
+ZILMATE_VOICE_LANGUAGE=en
+ZILMATE_VOICE_LANGUAGE_HINTS=
+ZILMATE_VOICE_BARGE_IN=true
+ZILMATE_VOICE_PLAYBACK_MODE=stream
+ZILMATE_VOICE_INPUT_DEVICE=
+ZILMATE_VOICE_DEBUG=false
+```
+
+<Tip>
+  Start with `ZILMATE_VOICE_DEBUG=true` when setting up voice for the first time. It prints Deepgram WebSocket events, audio device resolution, and STT results to the console so you can confirm your microphone is detected and the Deepgram connection is healthy before going hands-free.
+</Tip>

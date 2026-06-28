@@ -1,0 +1,97 @@
+---
+title: "ZilMate: Agentic AI Layer for Next.js and Node"
+sidebarTitle: "Introduction"
+description: "ZilMate is a production-grade multi-agent AI runtime for TypeScript. Run 30+ specialist agents, schedule jobs, and persist memory from a single SDK."
+---
+
+ZilMate is a programmable AI layer you install via npm and use from any TypeScript codebase — a Next.js app, an Express server, or a standalone automation script. It exposes the same swarm of 30+ specialist agents, long-term memory, background job scheduler, and real-time voice stack through two complementary interfaces: a TypeScript **SDK** and an interactive **CLI**. This page explains what ZilMate is, how its architecture is organized, and what you need before you begin.
+
+## Two ways to use ZilMate
+
+### SDK — `createZilMate()`
+
+Import ZilMate directly into your server-side code using the `zilmate/server` entry point. Instantiate a client with `createZilMate()`, then call any agent method — `manager()`, `coding()`, `research()`, `remember()`, and more — as ordinary async functions.
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'my-session' });
+const { text } = await zilmate.manager({ message: 'Summarize my open jobs.' });
+console.log(text);
+```
+
+### CLI — `zilmate`
+
+The `zilmate` CLI gives you the full agent swarm from your terminal. Use it for interactive chat, one-shot commands, job management, voice sessions, memory operations, and environment diagnostics — no code required.
+
+```bash
+zilmate talk                                       # interactive chat
+zilmate manager "Draft a roadmap for my project"  # one-shot manager call
+zilmate doctor                                     # verify your environment
+```
+
+---
+
+## Key capabilities
+
+- **Manager agent** — A Supervisor (CEO) that accepts natural-language requests, plans execution, routes work to specialist agents, and synthesizes a final response.
+- **30+ swarm specialists** — Dedicated agents for coding, image generation, web research, marketing copy, goal planning, file operations, desktop context, Composio app integrations, and more.
+- **Long-term memory** — `remember()` and `recall()` persist facts to Upstash Redis or local storage and surface them automatically in future sessions.
+- **Background jobs** — Schedule recurring tasks with cron expressions, run them locally with `zilmate jobs worker`, or trigger them serverlessly via Upstash QStash and a public webhook.
+- **Real-time voice** — Hands-free voice dialog powered by Deepgram. Start a session with `zilmate voice live` or the SDK's `startVoiceSession()`.
+- **Tool suites** — Built-in tools for file system operations, clipboard, screenshots, camera capture, code intelligence (`grepCodebase`, `scaffoldFiles`, `runProjectChecks`), and 100+ external app connectors via Composio.
+
+---
+
+## Architecture overview
+
+ZilMate models your workspace as a Digital Corporation. The **Supervisor Manager (CEO)** receives every request, decides which departments should handle it, and delegates down the hierarchy.
+
+```text
+💼 Supervisor Manager (CEO)
+ └── ⚙️ Digital Corporation (COO)
+      ├── 📊 Strategy & Planning Department
+      ├── 💻 Software Engineering Department
+      ├── 📈 Growth & Marketing Department
+      ├── 📋 General Operations Department
+      ├── 🗄️ Data Analytics Department
+      ├── 🛡️ Security & Audits Department
+      └── 💰 Revenue & Finance Department
+```
+
+Specialists within each department communicate over a horizontal peer-to-peer messaging fabric, which means they can collaborate directly without routing every message back through the CEO. This architecture lets ZilMate tackle complex, multi-step work — a coding task that requires research, a marketing campaign that needs image assets — within a single `manager()` call.
+
+---
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install ZilMate, set your API key, and send your first message in under five minutes.
+  </Card>
+  <Card title="SDK Overview" icon="code" href="/sdk/overview">
+    Explore every SDK method, options, and TypeScript types.
+  </Card>
+  <Card title="Swarm Overview" icon="sitemap" href="/swarm/overview">
+    Learn how the 30+ specialists are organized and when to call them directly.
+  </Card>
+  <Card title="CLI Overview" icon="terminal" href="/cli/overview">
+    Full CLI command reference for chat, jobs, voice, memory, and more.
+  </Card>
+</CardGroup>
+
+---
+
+## Prerequisites
+
+Before you install ZilMate, make sure your environment meets the following requirements:
+
+- **Node.js ≥ 20** — ZilMate uses native async iterators, `ReadableStream`, and other modern APIs.
+- **npm** (or yarn / pnpm) — for installing the `zilmate` package.
+- **An AI Gateway API key** — passed via `AI_GATEWAY_API_KEY`. Run `zilmate setup` after installation and the wizard will prompt you for it.
+- **ffmpeg** _(optional)_ — required for camera capture (`zilmate camera capture`). Install with `winget install Gyan.FFmpeg` on Windows or `brew install ffmpeg` on macOS.
+- **Playwright** _(optional)_ — required for browser-automation tools used by certain swarm specialists.
+
+<Note>
+  Every optional feature — voice, camera, Composio integrations, Redis-backed memory, background jobs — can be skipped. If you only want basic chat, the AI Gateway key is all you need.
+</Note>

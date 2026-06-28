@@ -1,0 +1,95 @@
+---
+title: "zilmate models: Select AI Models for Each Agent"
+sidebarTitle: "models"
+description: "List available AI models and assign specific models to ZilMate agents using zilmate models. Selections persist to workspace config and apply on every run."
+---
+
+ZilMate routes different task types to different agent targets, and each target can use a different AI model. `zilmate models` opens an interactive model browser that lists every model available from your AI Gateway, lets you assign a model to an agent target, and persists your selections so they apply automatically on every future run.
+
+---
+
+## `zilmate models`
+
+Open the interactive model browser:
+
+```bash
+zilmate models
+```
+
+The browser lists all models available through your configured AI Gateway. Use the filter flags to narrow the list when you know which provider you want:
+
+```bash
+# Show only Anthropic models
+zilmate models --provider anthropic
+
+# Show only Google / Gemini models
+zilmate models --provider gemini
+
+# Show 50 models per page
+zilmate models --limit 50
+
+# Jump to page 2
+zilmate models --page 2
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-p, --provider <provider>` | Filter by provider or text: `openai`, `google`, `gemini`, `anthropic`, etc. |
+| `-l, --limit <number>` | Models per page (default: `20`) |
+| `--page <number>` | Page number (default: `1`) |
+
+---
+
+## Assigning a model to an agent target
+
+When you select a model in the browser, you are prompted to choose an agent target. The selection is saved to `~/Downloads/ZilMate/config/models.json` (or the path set by `ZILMATE_WORKSPACE`) and takes effect immediately on the next run.
+
+### Agent targets and their environment variable overrides
+
+| Agent target | Environment variable | Description |
+|---|---|---|
+| `manager` | `ZILO_MANAGER_MODEL` | Main orchestrator and chat agent |
+| `help` | `ZILO_HELP_MODEL` | Quick help and troubleshooting agent |
+| `post` | `ZILO_POST_MODEL` | Social copy and caption generation |
+| `image` (provider) | `ZILO_IMAGE_DEFAULT_PROVIDER` | Default image provider: `openai` or `gemini` |
+| `image` (OpenAI model) | `ZILO_IMAGE_OPENAI_MODEL` | OpenAI image model, e.g. `openai/gpt-image-2` |
+| `image` (Gemini model) | `ZILO_IMAGE_GEMINI_MODEL` | Gemini image model, e.g. `google/gemini-3-pro-image` |
+
+You can also set these directly in your `.env` to override the saved selection without using the browser.
+
+---
+
+## Inside an interactive session
+
+Inside a `zilmate talk` session, type `/model pick` to open the same model browser without leaving the session:
+
+```
+/model pick
+```
+
+Changes take effect for the remainder of your current session and are also saved to the workspace config.
+
+---
+
+## SDK equivalent
+
+Apply and persist model selections programmatically:
+
+```ts
+import { applyStoredModelSelections, saveModelSelection } from 'zilmate/server';
+
+// Load any saved selections before running tasks
+await applyStoredModelSelections();
+
+// Save a new selection
+await saveModelSelection('manager', 'anthropic/claude-sonnet-4');
+await saveModelSelection('help', 'alibaba/qwen3.7-plus');
+```
+
+---
+
+<Tip>
+Match models to task requirements. Use a fast, low-latency model for `help` (where response speed matters most) and a more capable model for `manager` (where reasoning quality drives results). The defaults in `.env` are a reasonable starting point.
+</Tip>

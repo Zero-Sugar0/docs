@@ -1,0 +1,190 @@
+---
+title: "zilmate jobs: Create, Schedule, and Monitor Background Tasks"
+sidebarTitle: "jobs"
+description: "Use zilmate jobs to create cron-scheduled AI tasks, run the local job worker, list job history, and monitor execution logs from the terminal."
+---
+
+ZilMate's job system lets you queue AI tasks to run on a schedule or on demand — without keeping a chat session open. Jobs run locally via the `worker` command, or remotely via Upstash QStash when you need tasks to execute even when your machine is asleep. All job subcommands are available under `zilmate jobs`.
+
+<Note>
+Set `ZILMATE_JOBS_ENABLED=true` in your `.env` before using any `jobs` subcommand. Run `zilmate setup` to configure this interactively.
+</Note>
+
+---
+
+## Subcommands
+
+### `zilmate jobs create`
+
+Queue a new background job. Pass the task description as the first argument.
+
+```bash
+zilmate jobs create "<task description>"
+```
+
+**Examples:**
+
+```bash
+# One-time job with no schedule
+zilmate jobs create "Research today's priority updates and summarize them"
+
+# Daily recurring job
+zilmate jobs create "Prepare my weekday morning briefing" --schedule "daily"
+
+# Hourly job
+zilmate jobs create "Check for new GitHub notifications and log them" --schedule "hourly"
+
+# Cron expression
+zilmate jobs create "Weekly revenue report" --schedule "cron:0 9 * * 1"
+
+# Run at a specific time
+zilmate jobs create "Deploy staging to production" --schedule "daily" --run-at "2025-08-01T09:00:00Z"
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `--schedule <schedule>` | Schedule expression: `hourly`, `daily`, `every 15 minutes`, or `cron:* * * * *` |
+| `--run-at <date>` | ISO 8601 date/time for the first run |
+
+---
+
+### `zilmate jobs worker`
+
+Start the local job processor. The worker polls for due jobs, executes them one by one, and logs each result.
+
+```bash
+zilmate jobs worker
+```
+
+The worker keeps running until you stop it with `Ctrl+C`. Use `--once` to process all currently due jobs and then exit — useful in scripts and CI:
+
+```bash
+zilmate jobs worker --once
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-i, --interval <seconds>` | Polling interval in seconds (default: `10`) |
+| `--once` | Process due jobs once and exit |
+| `--quiet` | Suppress worker status messages |
+
+---
+
+### `zilmate jobs list`
+
+Display all jobs with their status, last run time, and next scheduled run.
+
+```bash
+zilmate jobs list
+```
+
+Filter by status:
+
+```bash
+zilmate jobs list --status queued
+zilmate jobs list --status failed
+zilmate jobs list --limit 50
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `--status <status>` | Filter by `queued`, `running`, `succeeded`, `failed`, or `cancelled` |
+| `-l, --limit <number>` | Maximum jobs to return (default: `25`) |
+
+---
+
+### `zilmate jobs status <id>`
+
+Show the full details for a single job by ID.
+
+```bash
+zilmate jobs status job_abc123
+```
+
+---
+
+### `zilmate jobs run <id>`
+
+Execute a specific job immediately, regardless of its schedule.
+
+```bash
+zilmate jobs run job_abc123
+```
+
+Use this to test a job after creating it, or to re-run a failed job manually.
+
+---
+
+### `zilmate jobs logs <id>`
+
+Print execution logs for a specific job.
+
+```bash
+zilmate jobs logs job_abc123
+```
+
+Logs include the agent's output, any tool calls made, and the final result or error.
+
+---
+
+### `zilmate jobs cancel <id>`
+
+Cancel a pending job so it does not execute on its next scheduled run.
+
+```bash
+zilmate jobs cancel job_abc123
+```
+
+---
+
+### `zilmate jobs listen`
+
+Start a local webhook server that receives job triggers from QStash. Use this during local development to test hosted schedule delivery without deploying a public endpoint.
+
+```bash
+# Start the webhook server on the default port (8787)
+zilmate jobs listen
+
+# Start with a Cloudflare quick tunnel to expose a public URL automatically
+zilmate jobs listen --tunnel
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `-p, --port <number>` | Local webhook port (default: `8787`) |
+| `--tunnel` | Start a Cloudflare quick tunnel alongside the server (requires `cloudflared`) |
+
+<Tip>
+Use `zilmate jobs listen --tunnel` during local development. The tunnel creates a public HTTPS URL that you can paste into `ZILMATE_PUBLIC_JOB_WEBHOOK_URL`, so QStash can deliver webhooks to your local machine. Run `zilmate setup --install-cloudflare-deps true` if `cloudflared` is not yet installed.
+</Tip>
+
+---
+
+## End-to-end example
+
+```bash
+# 1. Create a daily briefing job
+zilmate jobs create "Pull my open GitHub PRs, Notion tasks, and Slack DMs and write a morning briefing" \
+  --schedule "daily" \
+  --run-at "2025-08-01T08:00:00Z"
+
+# 2. Check it was queued
+zilmate jobs list --status queued
+
+# 3. Run it immediately to test
+zilmate jobs run job_abc123
+
+# 4. Review the output
+zilmate jobs logs job_abc123
+
+# 5. Start the local worker to process future scheduled runs
+zilmate jobs worker
+```

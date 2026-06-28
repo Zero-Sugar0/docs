@@ -1,0 +1,206 @@
+---
+title: "Multimedia Tools: FFmpeg Processing and Deepgram Transcription"
+sidebarTitle: "Multimedia Tools"
+description: "ZilMate's multimedia suite lets agents process video and audio with FFmpeg, transcribe speech with Deepgram, and generate images — all from natural language instructions."
+---
+
+ZilMate agents can process media files directly — convert video formats, extract audio tracks, transcribe recordings, optimize images, and synthesize speech — using built-in FFmpeg and Deepgram integrations. Describe the task in plain language and the agent selects the right tool, runs it against your local files, and returns the result.
+
+## FFmpeg operations
+
+FFmpeg powers video transcoding, audio extraction, and image optimization. Agents invoke the `ffmpeg` CLI under the hood, so FFmpeg must be installed on your system.
+
+<Steps>
+  <Step title="Install FFmpeg">
+    <Tabs>
+      <Tab title="macOS">
+        ```bash
+        brew install ffmpeg
+        ```
+      </Tab>
+      <Tab title="Ubuntu / Debian">
+        ```bash
+        apt install ffmpeg
+        ```
+      </Tab>
+      <Tab title="Windows">
+        Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add the `bin` folder to your system PATH.
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Describe the task to your agent">
+    Once FFmpeg is on your PATH, agents will detect it automatically and use it for any media processing request.
+  </Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title="transcodeVideo — Convert and process video files">
+    Transcodes a local video file using FFmpeg. Supports format conversion (mp4, webm, mov, and more), resolution scaling, frame rate changes, duration trimming, and codec selection.
+
+    **Parameters**
+    - `inputPath` _(string)_ — relative or absolute path to the input video file.
+    - `outputPath` _(string)_ — path to save the output file. The container format is derived from the file extension.
+    - `resolution` _(string, optional)_ — output resolution (e.g. `"1280x720"`, `"1920x1080"`).
+    - `fps` _(number, optional)_ — output frame rate (e.g. `24`, `30`, `60`).
+    - `durationSeconds` _(number, optional)_ — trim the video to this duration in seconds.
+    - `codec` _(string, optional)_ — video codec to use (e.g. `"libx264"`, `"libx265"`, `"copy"`). Defaults to `libx264`.
+
+    **Example agent prompts**
+    ```
+    Convert recording.mov to recording.mp4 at 720p.
+    ```
+    ```
+    Trim intro.mp4 to the first 30 seconds and save it as intro-short.mp4.
+    ```
+  </Accordion>
+
+  <Accordion title="extractAudio — Pull the audio track from a video">
+    Extracts the audio track from a video file and saves it as a high-quality MP3 (VBR ~190 kbps). Useful for preparing audio files for transcription.
+
+    **Parameters**
+    - `videoPath` _(string)_ — relative or absolute path to the input video file.
+    - `audioOutputPath` _(string)_ — path to save the extracted `.mp3` file.
+
+    **Example agent prompt**
+    ```
+    Extract the audio from meeting-recording.mp4 and save it as meeting.mp3.
+    ```
+  </Accordion>
+
+  <Accordion title="optimizeImage — Compress and convert images">
+    Compresses, resizes, and converts local images (PNG, JPEG, WEBP, GIF) using FFmpeg. Supports max-width and max-height constraints (maintaining aspect ratio), quality tuning, format conversion, and optional text watermarks.
+
+    **Parameters**
+    - `imagePath` _(string)_ — path to the input image file.
+    - `outputPath` _(string)_ — path to save the optimized output.
+    - `maxWidth` _(number, optional)_ — maximum width in pixels (aspect ratio preserved).
+    - `maxHeight` _(number, optional)_ — maximum height in pixels (aspect ratio preserved).
+    - `quality` _(number, default `80`)_ — optimization quality from 1 to 100.
+    - `format` _(enum, optional)_ — target format: `webp`, `jpeg`, or `png`.
+    - `watermarkText` _(string, optional)_ — text watermark overlaid on the bottom-right corner.
+
+    **Example agent prompt**
+    ```
+    Resize hero.png to a max width of 1200px, convert it to WebP at quality 85, and watermark it with 'acme.com'.
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Deepgram transcription
+
+The `speechToText` tool transcribes audio files to text. It uses Deepgram as the primary provider and falls back to OpenAI Whisper if a `DEEPGRAM_API_KEY` is not set.
+
+### Setup
+
+```env
+DEEPGRAM_API_KEY=your_deepgram_api_key
+
+# Optional: override the transcription model (default: nova-2)
+ZILMATE_VOICE_LANGUAGE=en
+```
+
+<AccordionGroup>
+  <Accordion title="speechToText — Transcribe audio to text">
+    Transcribes a local audio file (WAV, MP3, M4A, and others) using Deepgram or OpenAI Whisper. Returns the full transcript and, for Deepgram, a confidence score.
+
+    **Parameters**
+    - `audioPath` _(string)_ — relative or absolute path to the audio file in your workspace.
+    - `language` _(string, optional)_ — language tag for transcription (e.g. `"en"`, `"es"`, `"fr"`).
+
+    **Provider priority**
+    1. **Deepgram** — used when `DEEPGRAM_API_KEY` is set. Supports `smart_format` and multiple languages via `ZILMATE_VOICE_LANGUAGE`.
+    2. **OpenAI Whisper** — fallback when `OPENAI_API_KEY` is present and Deepgram is unavailable.
+
+    **Example agent prompt**
+    ```
+    Transcribe the file meeting.mp3 and summarize the action items.
+    ```
+
+    The agent will call `speechToText` on `meeting.mp3`, receive the transcript, and then use its reasoning to extract and format a list of action items.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Text-to-speech
+
+The `textToSpeech` tool converts text into spoken MP3 audio. It tries Deepgram Aura-2 first, then OpenAI TTS, then falls back to the OS-native synthesizer (Windows SAPI, macOS `say`, Linux `espeak` or `festival`).
+
+<AccordionGroup>
+  <Accordion title="textToSpeech — Convert text to spoken audio">
+    Generates an MP3 audio file from a text string.
+
+    **Parameters**
+    - `text` _(string)_ — the text to convert to speech.
+    - `outputPath` _(string)_ — path to save the generated `.mp3` file.
+    - `voice` _(string, optional)_ — voice name. Deepgram voices: `"aura-asteria-en"`, `"aura-2-thalia-en"`. OpenAI voices: `"alloy"`, `"echo"`, `"fable"`, `"onyx"`, `"nova"`, `"shimmer"`.
+
+    **Provider priority**
+    1. **Deepgram Aura-2** — used when `DEEPGRAM_API_KEY` is set.
+    2. **OpenAI TTS** — fallback when `OPENAI_API_KEY` is present.
+    3. **OS synthesizer** — offline fallback (Windows SAPI, macOS `say`, Linux `espeak`/`festival`).
+
+    **Example agent prompt**
+    ```
+    Read out the release notes from CHANGELOG.md and save the audio to release-notes.mp3.
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Image generation
+
+ZilMate's image agent enhances your prompt before sending it to an image generation provider. Configure your preferred provider and model with the following environment variables:
+
+```env
+# Provider: openai or gemini
+ZILO_IMAGE_DEFAULT_PROVIDER=openai
+
+# OpenAI image model
+ZILO_IMAGE_OPENAI_MODEL=openai/gpt-image-2
+
+# Gemini image model
+ZILO_IMAGE_GEMINI_MODEL=google/gemini-3-pro-image
+```
+
+Call the image agent directly from the SDK:
+
+```ts
+import { zilmate } from 'zilmate'
+
+const image = await zilmate.imageAgent({
+  prompt: 'Product hero image: dark SaaS dashboard, cyan accent, 16:9',
+})
+```
+
+The image agent rewrites and enriches your prompt before generation to improve composition, lighting, and style consistency. Pass a raw concept or a detailed specification — it works either way.
+
+---
+
+## Examples
+
+```ts
+import { zilmate } from 'zilmate'
+
+// Transcribe and summarize a meeting recording
+await zilmate.manager({
+  message: 'Transcribe the file meeting.mp3 and summarize the action items',
+})
+
+// Generate a product image
+await zilmate.imageAgent({
+  prompt: 'Product hero image: dark SaaS dashboard, cyan accent, 16:9',
+})
+
+// Convert and compress a video
+await zilmate.manager({
+  message: 'Convert webinar.mov to webinar.mp4 at 720p using H.264',
+})
+```
+
+<Note>
+  FFmpeg must be installed and available on your system PATH for `transcodeVideo`, `extractAudio`, `optimizeImage`, and the offline `textToSpeech` fallback to work. Install it with `brew install ffmpeg` on macOS or `apt install ffmpeg` on Linux before running media tasks.
+</Note>

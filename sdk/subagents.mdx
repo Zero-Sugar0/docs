@@ -1,0 +1,179 @@
+---
+title: "ZilMate Subagents: Direct Specialist Access"
+sidebarTitle: "Subagents"
+description: "Call ZilMate's specialist agents directly — image director, goal planner, research agent, post writer, and more — without full manager orchestration."
+---
+
+When you know exactly which specialist you need, call it directly instead of routing through the Manager. Direct subagent calls skip orchestration overhead — no routing logic, no delegation step — and return faster for focused, well-defined tasks. Each subagent is fully capable on its own; the Manager only adds value when the task spans multiple domains or requires dynamic routing.
+
+---
+
+## Subagent method reference
+
+| Method | Agent | Input type | Best for |
+|---|---|---|---|
+| `manager({ message })` | Main orchestrator | `ZilMateTextInput` | General tasks, routing, tools, memory |
+| `coding({ prompt })` | Coding agent | `ZilMatePromptInput` | Repo edits, builds, tests, patches |
+| `imageAgent({ prompt })` | Image director | `ZilMatePromptInput` | Image generation and prompt refinement |
+| `goalManager({ prompt })` | Goal planner | `ZilMatePromptInput` | Break goals into steps and schedules |
+| `research({ query })` | Docs/web research | `ZilMateResearchInput` | Sourced answers with citations |
+| `help({ question })` | Quick help | `ZilMateQuestionInput` | Usage questions and troubleshooting |
+| `post({ prompt })` | Copywriter | `ZilMatePromptInput` | Short social posts and status updates |
+| `chat({ message })` | Conversational chat | `ZilMateTextInput` | Open-ended dialogue |
+
+---
+
+## Input type variants
+
+ZilMate uses distinct input shapes to keep each agent's interface explicit:
+
+```ts
+// ZilMateTextInput — for message-based agents
+type ZilMateTextInput = { message: string };
+
+// ZilMatePromptInput — for prompt-based agents
+type ZilMatePromptInput = { prompt: string };
+
+// ZilMateQuestionInput — for the help agent
+type ZilMateQuestionInput = { question: string };
+
+// ZilMateResearchInput — for the research agent
+type ZilMateResearchInput = { query: string };
+```
+
+The `manager()` and `chat()` methods also accept `ZilMatePromptInput` — the SDK normalises whichever field you provide.
+
+---
+
+## Image agent
+
+The image director runs a two-step pipeline: it first calls `enhanceImagePrompt` to expand and sharpen your description, then calls `generateImage` to produce the final asset. This ensures the generation model receives a well-structured prompt even when your input is brief.
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'creative-session' });
+
+const { text } = await zilmate.imageAgent({
+  prompt: 'Product hero image: dark SaaS dashboard on laptop, cyan accent, no text gibberish, 16:9',
+});
+
+// text contains the generation result and the enhanced prompt used
+console.log(text);
+```
+
+When you need lower-level control — choosing a provider, specifying dimensions, or setting an output directory — use the `image()` method instead, which exposes `ImageGenerationOptions` directly:
+
+```ts
+import { image } from 'zilmate/server';
+
+const result = await image({
+  prompt: 'Minimal product screenshot on white background',
+  provider: 'openai',
+  size: '1792x1024',
+  outputDir: './public/assets',
+});
+```
+
+---
+
+## Goal manager
+
+The goal manager takes a high-level objective and breaks it into concrete, ordered steps. Use it when you want a structured execution plan before handing work to other agents.
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'planning-session' });
+
+const { text } = await zilmate.goalManager({
+  prompt: 'Launch a public beta for my SaaS app in 30 days. I have a working MVP but no auth or billing yet.',
+});
+
+console.log(text);
+// → Step 1: Integrate Clerk for authentication (3 days)
+// → Step 2: Add Stripe subscription with free-trial plan (2 days)
+// → ...
+```
+
+---
+
+## Research agent
+
+The research agent searches the web and your documentation to return sourced, accurate answers. It is the right call whenever you need up-to-date information or want references alongside the reply.
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'research-session' });
+
+const { text } = await zilmate.research({
+  query: 'Vercel AI SDK streaming patterns for App Router',
+});
+
+console.log(text);
+```
+
+You can also pass a `{ message }` to the research agent when the phrasing is more conversational:
+
+```ts
+const { text } = await zilmate.research({
+  message: 'What are the current rate limits for the OpenAI GPT-4o API?',
+});
+```
+
+---
+
+## Help agent
+
+Use the help agent for quick answers about ZilMate's own features, configuration, and troubleshooting. It responds without spinning up full orchestration.
+
+```ts
+const { text } = await zilmate.help({
+  question: 'How do I enable Redis for multi-instance memory?',
+});
+```
+
+---
+
+## Post agent
+
+The post agent writes short-form copy — social posts, changelogs, release announcements — from a prompt.
+
+```ts
+const { text } = await zilmate.post({
+  prompt: 'Write a Twitter post announcing ZilMate v2 with background job support. Upbeat tone, max 280 chars.',
+});
+```
+
+---
+
+## Combining subagents
+
+Call multiple agents in sequence when a task has distinct phases. Research first, then act:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'combined-session' });
+
+// Step 1: research the pattern
+const { text: researchResult } = await zilmate.research({
+  query: 'Next.js App Router middleware auth patterns with Clerk',
+});
+
+// Step 2: implement based on findings
+const { text: codingResult } = await zilmate.coding({
+  prompt: `Using this reference:\n${researchResult}\n\nAdd Clerk middleware to middleware.ts in this repo.`,
+});
+
+console.log(codingResult);
+```
+
+<Tip>
+  Pass results from one subagent as context in the next subagent's prompt. This gives each specialist exactly the information it needs without routing through the Manager.
+</Tip>
+
+<Note>
+  All subagent methods respect the `sessionId`, `onProgress`, and `confirm` options you set on `createZilMate()`. Progress events fire for every tool call made inside a specialist, so your UI sees the full activity stream even on direct calls.
+</Note>

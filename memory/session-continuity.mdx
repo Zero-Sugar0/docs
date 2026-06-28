@@ -1,0 +1,108 @@
+---
+title: "Session Continuity: Resume Agent Work Across Runs"
+sidebarTitle: "Session Continuity"
+description: "ZilMate's session handoff system saves task state between runs. Use handoff() to resume long tasks and situation() to give agents instant workspace awareness."
+---
+
+Long-running tasks often span multiple agent sessions. A codebase migration, a multi-stage research project, or a scheduled weekly report might start in one run and need to continue in the next — hours or days later. ZilMate's continuity system saves a handoff summary at the end of each session so you can resume exactly where you left off, with full context about what was done and what comes next.
+
+## Situational Awareness
+
+Before starting a significant task, give your agent an instant picture of the current workspace state. `zilmate.situation()` calls `getSituationBrief` internally and returns a structured snapshot covering the working directory, git status, recent jobs, available models, memory, and open projects.
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'default' });
+
+const brief = await zilmate.situation({ sessionId: 'default' });
+
+// Inspect specific fields
+console.log(brief.git);        // Current branch, staged files, recent commits
+console.log(brief.recentJobs); // Latest background jobs and their statuses
+console.log(brief.models);     // Active model selections for each agent role
+```
+
+Pass the brief — or selected fields from it — into a `zilmate.manager()` call to prime the agent with workspace context before it takes any action.
+
+## Session Handoffs
+
+The handoff pattern gives you a reliable way to end a session cleanly and resume it later. The manager can call `generateSessionHandoff` and `saveSessionHandoff` automatically at the end of a long task. You can also trigger the save and load cycle explicitly from your own code.
+
+<Steps>
+  <Step title="End the session and save a handoff">
+    When the manager completes a long task, it can automatically generate and save a handoff summary. You can also save one explicitly by calling `zilmate.handoff` with a payload — or rely on the manager's built-in end-of-session behavior via `generateSessionHandoff` / `saveSessionHandoff`.
+
+    The handoff captures a `summary` of completed work and a `nextActions` list describing what should happen in the next session.
+  </Step>
+  <Step title="Load the handoff in the next session">
+    At the start of a new run, call `zilmate.handoff({ sessionId })` with the same `sessionId` used in the previous run. This loads the saved handoff object — or returns `null` if no handoff exists for that session.
+
+    ```ts
+    const handoff = await zilmate.handoff({ sessionId: 'default' });
+    ```
+  </Step>
+  <Step title="Resume work from the handoff">
+    If a handoff exists, pass `handoff.summary` and `handoff.nextActions` directly into `zilmate.manager()` as part of the message. The manager picks up with full awareness of prior progress and knows exactly which steps remain.
+
+    ```ts
+    const handoff = await zilmate.handoff({ sessionId: 'default' });
+
+    if (handoff) {
+      await zilmate.manager({
+        message: `Continue from handoff:\n${handoff.summary}\nNext: ${handoff.nextActions.join(', ')}`,
+      });
+    }
+    ```
+  </Step>
+</Steps>
+
+## Full Resumption Example
+
+The following pattern is the recommended way to implement session continuity in a server route or automation script. It handles both fresh starts and resumptions with the same code path:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({ sessionId: 'default' });
+
+// Attempt to load an existing handoff for this session
+const handoff = await zilmate.handoff({ sessionId: 'default' });
+
+if (handoff) {
+  // Resume: inject the saved summary and next actions as context
+  await zilmate.manager({
+    message: `Continue from handoff:\n${handoff.summary}\nNext: ${handoff.nextActions.join(', ')}`,
+  });
+} else {
+  // Fresh start: no prior handoff exists for this session
+  await zilmate.manager({
+    message: 'Start the weekly GitHub PR summary and suggest next steps.',
+  });
+}
+```
+
+## The `sessionId` Parameter
+
+The `sessionId` you pass to `createZilMate` is the key that links all of ZilMate's stateful systems together. Memory entries, background jobs, and handoff summaries are all stored and retrieved under the same `sessionId`. Using a consistent `sessionId` across SDK instantiations means every run that shares a session ID automatically inherits the same accumulated context.
+
+<Tip>
+  In multi-tenant applications, use per-user or per-project session IDs (e.g., `user-${userId}` or `project-${projectId}`) so that memory, jobs, and handoffs never bleed across tenants.
+</Tip>
+
+## `loadSessionHandoff` — Standalone Export
+
+If you need to load a handoff outside of a `createZilMate` context — for example, in a webhook handler, a health-check route, or a custom orchestration script — use the `loadSessionHandoff` named export directly:
+
+```ts
+import { loadSessionHandoff } from 'zilmate/server';
+
+const handoff = await loadSessionHandoff('default');
+
+if (handoff) {
+  console.log('Prior session summary:', handoff.summary);
+  console.log('Next actions:', handoff.nextActions);
+}
+```
+
+This gives you access to the handoff data without needing to instantiate the full ZilMate SDK, keeping lightweight utilities lean.

@@ -1,0 +1,175 @@
+---
+title: "Semantic Corporate Wiki: Shared Knowledge for Swarm Agents"
+sidebarTitle: "Corporate Wiki"
+description: "The ZilMate Corporate Wiki is a shared semantic knowledge store for swarm agents. Publish and query artifacts using Upstash Vector or SuperMemory backends."
+---
+
+The Corporate Wiki is a shared blackboard that all swarm agents can read from and write to. Rather than re-running research that another agent already completed, any specialist can query the wiki and immediately inherit the relevant findings. This prevents redundant work and enables cross-department knowledge transfer without stuffing full reports into every agent's context window — making your swarm faster, cheaper to run, and more coherent across long-horizon tasks.
+
+## How It Works
+
+The wiki provides two operations. Agents use them together to form a continuous knowledge loop: one agent publishes a deliverable, and any downstream agent queries for it on demand.
+
+### Publishing to the Wiki
+
+Call `publishToCorporateWiki` whenever an agent completes a high-value deliverable — a competitive analysis, an API schema, a keyword research report, or a strategic decision. The content is indexed semantically so other agents can retrieve it with natural language queries later.
+
+```ts
+await publishToCorporateWiki({
+  key: 'seo-keyword-research-q3',
+  content: `
+    ## Q3 Keyword Research Report
+    Top clusters: "ai automation", "next.js agent", "multi-agent framework"
+    Recommended anchor pages: /features, /docs/getting-started
+    Low-competition targets: "zilmate tutorial", "programmable agents nextjs"
+  `,
+  tags: ['seo', 'content', 'q3'],
+});
+```
+
+**Parameters:**
+
+<ParamField body="key" type="string" required>
+  A unique, human-readable identifier for the wiki entry (e.g., `'market-analysis-2025-q2'`). Use consistent naming conventions across your swarm so agents can reason about what's likely in the wiki before querying.
+</ParamField>
+
+<ParamField body="content" type="string" required>
+  The full text of the deliverable to store. Markdown formatting is supported and recommended for structured reports.
+</ParamField>
+
+<ParamField body="tags" type="string[]">
+  Optional labels for categorizing the entry (e.g., `['research', 'seo']`). Tags help agents narrow their queries and help you audit wiki contents.
+</ParamField>
+
+### Querying the Wiki
+
+Call `queryCorporateWiki` at the start of any task where prior work might exist. The wiki performs a semantic search and returns only the entries most relevant to your query — you never need to load the full knowledge base into context.
+
+```ts
+const results = await queryCorporateWiki({
+  query: 'keyword research content strategy',
+  limit: 3,
+});
+
+for (const entry of results) {
+  console.log(entry.key, entry.content);
+}
+```
+
+**Parameters:**
+
+<ParamField body="query" type="string" required>
+  A natural language description of what you're looking for. The wiki uses semantic similarity — you do not need to match exact keys or tags.
+</ParamField>
+
+<ParamField body="limit" type="number">
+  Maximum number of entries to return. Defaults to a sensible value for context efficiency. Increase this when you need broad coverage; keep it low for targeted lookups.
+</ParamField>
+
+## Storage Backends
+
+Choose the backend that fits your deployment environment. All three backends expose the same `publishToCorporateWiki` and `queryCorporateWiki` interface — switching backends requires only an environment variable change.
+
+<Tabs>
+  <Tab title="Upstash Vector">
+    The recommended backend for production swarms. Upstash Vector indexes entries as high-dimensional embeddings, supporting millions of entries with low-latency semantic search and no infrastructure to manage.
+
+    ```env
+    UPSTASH_VECTOR_REST_URL=https://your-vector-endpoint.upstash.io
+    UPSTASH_VECTOR_REST_TOKEN=your-rest-token
+    ```
+
+    When both variables are present, ZilMate automatically uses Upstash Vector as the wiki backend.
+
+    **Best for:** Production deployments, large swarms with many agents publishing frequently, and scenarios where you need durable cross-session persistence.
+  </Tab>
+  <Tab title="SuperMemory">
+    A managed semantic memory service with built-in chunking and retrieval optimization. Set your SuperMemory API key and ZilMate handles the rest.
+
+    ```env
+    SUPERMEMORY_API_KEY=your-supermemory-api-key
+    ```
+
+    **Best for:** Teams that want a fully managed memory layer without configuring vector infrastructure. SuperMemory handles document chunking automatically, making it well-suited for storing long-form reports and multi-section research documents.
+  </Tab>
+  <Tab title="Local Files">
+    Zero-config fallback for development and single-node environments. Wiki entries are stored as JSON files inside `ZILMATE_WORKSPACE`. No API keys or external services required.
+
+    No environment variables needed — this backend activates automatically when neither Upstash Vector nor SuperMemory credentials are configured.
+
+    **Best for:** Local development, prototyping, and CI environments where you want to test swarm coordination logic without setting up cloud services.
+
+    <Note>
+      The local files backend does not perform vector-based semantic search. Queries use keyword matching, so results may be less precise than with Upstash Vector or SuperMemory. Switch to a vector backend before deploying to production.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Corporate Wiki vs. Long-Term Memory
+
+ZilMate provides two persistent knowledge stores. Use the right one for the job:
+
+| | Corporate Wiki | Long-Term Memory |
+|---|---|---|
+| **Scope** | Shared across all swarm agents | Per-session (per user or per project) |
+| **Purpose** | Swarm-wide artifacts — reports, research, decisions | Per-user preferences, choices, and personalization |
+| **Written by** | Any specialist agent after completing a deliverable | The agent session tied to a specific `sessionId` |
+| **Read by** | Any specialist agent at the start of a related task | The same session that wrote the memory |
+| **Example content** | Competitive analysis, keyword research, API schema | "User prefers pnpm", "Deploy target is Vercel" |
+
+Use the Corporate Wiki when an artifact is a **shared deliverable** that downstream agents will build on. Use long-term memory for **per-user context** that should follow a specific user or project across sessions.
+
+## Example Workflow: SEO to Content Pipeline
+
+This workflow shows how the SEO Expert and Content Writer use the wiki to collaborate without any direct hand-holding from the COO.
+
+**Step 1 — SEO Expert publishes keyword research:**
+
+```ts
+// SEO Expert agent publishes its deliverable to the wiki
+await publishToCorporateWiki({
+  key: 'keyword-research-ai-automation',
+  content: `
+    ## Keyword Research: AI Automation Cluster
+    Primary target: "ai automation framework" (KD: 28, Vol: 4,400/mo)
+    Secondary: "multi-agent nextjs", "programmable ai agents"
+    Recommended page: /features/agents
+    Internal links: /docs/swarm, /docs/getting-started
+  `,
+  tags: ['seo', 'keywords', 'content-brief'],
+});
+```
+
+**Step 2 — Content Writer queries the wiki and builds on it:**
+
+```ts
+// Content Writer queries the wiki before drafting the article
+const briefs = await queryCorporateWiki({
+  query: 'keyword research content brief ai automation',
+  limit: 2,
+});
+
+const context = briefs.map((b) => b.content).join('\n\n');
+
+// Inject retrieved context into the writing task
+await zilmate.manager({
+  message: `
+    Write a 1,200-word SEO article for the /features/agents page.
+    Use the following keyword research as your brief:
+
+    ${context}
+  `,
+});
+```
+
+<Note>
+  The Content Writer never needs to re-run the keyword research or receive a massive context injection from the COO. It queries only what it needs, keeping token usage low and execution fast.
+</Note>
+
+## Token Efficiency
+
+Querying the wiki returns only semantically relevant entries — not the full knowledge base. This means agents can access shared knowledge without the overhead of loading entire reports into their context window. In large swarms where dozens of agents publish dozens of artifacts, this selectivity is what keeps costs predictable and response times fast.
+
+<Tip>
+  Publish granular, focused entries rather than single monolithic documents. An entry covering one topic (e.g., a single competitor analysis or a single keyword cluster) is easier for agents to retrieve precisely than a sprawling multi-section report stored as one block.
+</Tip>

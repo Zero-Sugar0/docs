@@ -1,0 +1,129 @@
+---
+title: "Job Webhooks: QStash and Cloudflare Tunnel Integration"
+sidebarTitle: "Webhooks"
+description: "Expose ZilMate job execution via webhooks. Use Upstash QStash for reliable cloud delivery and Cloudflare tunnels for local development testing."
+---
+
+ZilMate's webhook system connects job scheduling to hosted delivery — QStash calls your webhook endpoint when a job is due, and ZilMate processes it securely. This lets your scheduled AI jobs execute in the cloud even when your local machine is offline, with signature verification ensuring that only legitimate QStash deliveries trigger execution.
+
+## Required environment variables
+
+Set these variables before enabling webhook-based job delivery:
+
+```env
+UPSTASH_QSTASH_TOKEN=your_qstash_token
+ZILMATE_PUBLIC_JOB_WEBHOOK_URL=https://your-app.com/api/jobs/webhook
+ZILMATE_JOB_WEBHOOK_SECRET=your_webhook_secret
+```
+
+<ParamField body="UPSTASH_QSTASH_TOKEN" type="string" required>
+  Your Upstash QStash API token. ZilMate uses this to register cron schedules and authorize incoming deliveries.
+</ParamField>
+
+<ParamField body="ZILMATE_PUBLIC_JOB_WEBHOOK_URL" type="string" required>
+  The publicly reachable URL that QStash will POST to when a scheduled job is due. Must be accessible from the internet.
+</ParamField>
+
+<ParamField body="ZILMATE_JOB_WEBHOOK_SECRET" type="string" required>
+  A secret string used to verify the signature on incoming webhook requests. ZilMate rejects any request that fails signature verification.
+</ParamField>
+
+## Setting up the Next.js webhook route
+
+Create the following API route in your Next.js App Router project. ZilMate's `handleJobWebhook()` method verifies the request signature, looks up the job, executes it, and returns the updated job record:
+
+```ts
+// app/api/jobs/webhook/route.ts
+import { createZilMate } from 'zilmate/server';
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const zilmate = createZilMate();
+  const job = await zilmate.handleJobWebhook(body, process.env.ZILMATE_JOB_WEBHOOK_SECRET);
+  return Response.json({ ok: true, jobId: job.id });
+}
+```
+
+<Warning>
+  Never expose this endpoint without signature verification. Always pass `ZILMATE_JOB_WEBHOOK_SECRET` to `handleJobWebhook()`. Omitting it allows any caller to trigger arbitrary job execution on your server.
+</Warning>
+
+## `handleJobWebhook(body, secret)`
+
+ZilMate's built-in webhook handler takes care of the full delivery pipeline in a single call.
+
+<ParamField body="body" type="object" required>
+  The parsed JSON body from the incoming POST request. Pass the result of `req.json()` directly.
+</ParamField>
+
+<ParamField body="secret" type="string" required>
+  The webhook secret used to verify the request signature. Must match `ZILMATE_JOB_WEBHOOK_SECRET`.
+</ParamField>
+
+The method:
+1. Verifies the request signature against the secret.
+2. Looks up the job record in SQLite by the ID embedded in the payload.
+3. Executes the job task via the agent runtime.
+4. Updates the job's status to `completed` or `failed`.
+5. Returns the updated `ZilMateJob` record.
+
+## Local development with Cloudflare tunnel
+
+QStash requires a public URL to deliver webhooks. During local development, use ZilMate's built-in tunnel command to expose your local server instantly:
+
+```bash
+zilmate jobs listen --tunnel
+```
+
+This command:
+- Downloads and starts a **Cloudflare Quick Tunnel** (`cloudflared`) for your platform automatically.
+- Generates a temporary public URL.
+- Sets `ZILMATE_PUBLIC_JOB_WEBHOOK_URL` automatically in your environment for the session.
+
+<Tip>
+  Test the full QStash → webhook → job execution pipeline locally with `--tunnel` before deploying to production. This catches signature mismatches, routing issues, and handler errors without any cloud deployments.
+</Tip>
+
+## Trigger workflows
+
+ZilMate can also map real-time Composio events to job triggers, firing jobs in response to external app activity (such as a new GitHub commit or a Slack message):
+
+```env
+ZILMATE_TRIGGER_WORKFLOWS_ENABLED=true
+```
+
+Start the trigger listener:
+
+```bash
+zilmate triggers listen
+```
+
+This streams live Composio events and maps them to configured job triggers. Use `zilmate triggers types <app>` to discover available event types for a connected app:
+
+```bash
+zilmate triggers types github
+```
+
+<Note>
+  Trigger workflows require a valid `COMPOSIO_API_KEY` in your environment. See the Composio setup guide for connecting external apps.
+</Note>
+
+## Webhook setup checklist
+
+<Steps>
+  <Step title="Set environment variables">
+    Add `UPSTASH_QSTASH_TOKEN`, `ZILMATE_PUBLIC_JOB_WEBHOOK_URL`, and `ZILMATE_JOB_WEBHOOK_SECRET` to your `.env` file.
+  </Step>
+  <Step title="Create the webhook route">
+    Add `app/api/jobs/webhook/route.ts` to your Next.js project using the code shown above.
+  </Step>
+  <Step title="Test locally with a tunnel">
+    Run `zilmate jobs listen --tunnel` to expose your local server and confirm end-to-end delivery.
+  </Step>
+  <Step title="Register the job with QStash">
+    Call `zilmate.registerQStashSchedule(job.id)` to activate cloud-hosted cron delivery for a scheduled job.
+  </Step>
+  <Step title="Deploy to production">
+    Deploy your Next.js app, set the real public URL in `ZILMATE_PUBLIC_JOB_WEBHOOK_URL`, and verify QStash can reach the endpoint.
+  </Step>
+</Steps>

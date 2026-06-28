@@ -1,47 +1,239 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with ZilMate in 5 Minutes"
+sidebarTitle: "Quickstart"
+description: "Install ZilMate, configure your API key, and send your first message to the Manager agent — all in under five minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+ZilMate ships as a single npm package that provides both a global CLI and a server-side TypeScript SDK. This guide walks you through installation, API key configuration, environment verification, and your first agent call — using whichever interface fits your workflow.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+<Note>
+  ZilMate requires **Node.js ≥ 20**. Run `node --version` before you begin and upgrade if necessary.
+</Note>
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
 
-    ```bash
-    npm install your-package
-    ```
-  </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+<Step title="Install ZilMate">
 
-    ```bash
-    your-cli init
-    ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+Install ZilMate globally to use the `zilmate` CLI from any directory, or add it as a project dependency to use the SDK inside your codebase.
 
-    ```bash
-    your-cli start
-    ```
-  </Step>
-</Steps>
+<CodeGroup>
+
+```bash npm (global CLI)
+npm install -g zilmate
+```
+
+```bash npm (project SDK)
+npm install zilmate
+```
+
+```bash yarn (project SDK)
+yarn add zilmate
+```
+
+```bash pnpm (project SDK)
+pnpm add zilmate
+```
+
+</CodeGroup>
+
+After the global install, confirm the binary is available:
+
+```bash
+zilmate --version
+```
+
+</Step>
+
+<Step title="Configure your API key">
+
+ZilMate needs an `AI_GATEWAY_API_KEY` to reach the AI models that power the swarm. Configure it in one of two ways:
+
+**Option A — Interactive wizard (recommended)**
+
+```bash
+zilmate setup
+```
+
+The wizard prompts you for your API key and walks through every optional integration (Composio, Tavily, Redis, QStash, voice). Skip anything you don't need.
+
+**Option B — Manual `.env` file**
+
+Create a `.env` file at your project root (or export the variables in your shell):
+
+```env
+AI_GATEWAY_API_KEY=your_ai_gateway_key_here
+ZILMATE_USER_ID=zilmate-your-unique-user-id
+```
 
 <Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
-
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+  Use a `.env.local` file in Next.js projects — it is excluded from version control by default and takes precedence over `.env`.
 </Tip>
+
+</Step>
+
+<Step title="Verify your environment">
+
+Run the built-in diagnostics command to confirm that ZilMate can reach the AI gateway and that all configured integrations are healthy:
+
+```bash
+zilmate doctor
+```
+
+Each check appears with a green **OK** badge when it passes. A green OK on the **AI Gateway** row means your key is valid and the model routing is reachable. Rows for optional features (Redis, QStash, Deepgram) show **SKIP** if they are not configured — that is expected and safe to ignore.
+
+</Step>
+
+<Step title="Send your first message — SDK">
+
+Create a file (for example `agent.ts`) and call the Manager agent:
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+const zilmate = createZilMate({
+  sessionId: 'quickstart-session',
+  onProgress: (event) => console.log(`[${event.type}] ${event.label}`),
+});
+
+const { text } = await zilmate.manager({
+  message: 'Summarize what ZilMate can do for a new user.',
+});
+
+console.log(text);
+```
+
+Run it with ts-node or tsx:
+
+```bash
+npx tsx agent.ts
+```
+
+The `onProgress` callback logs each step the swarm takes as it works. The final `text` field holds the synthesized reply from the Manager agent.
+
+</Step>
+
+<Step title="Send your first message — CLI">
+
+Use `zilmate talk` to open a persistent, interactive chat session:
+
+```bash
+zilmate talk
+```
+
+Or send a one-shot message directly and print the response:
+
+```bash
+zilmate manager "Draft a roadmap for my project"
+```
+
+Inside `zilmate talk`, type `/help` to see all slash commands, including `/voice` to switch to hands-free microphone mode.
+
+</Step>
+
+</Steps>
+
+---
+
+## Next.js App Router — streaming chat route
+
+ZilMate streams progress events as newline-delimited JSON, making it a natural fit for the Next.js App Router. Add the following route to expose a streaming endpoint to your frontend.
+
+**Server route** — `app/api/zilmate/route.ts`
+
+```ts
+import { createZilMate } from 'zilmate/server';
+
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
+export async function POST(request: Request) {
+  const { message, sessionId = 'web-default' } = await request.json();
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (payload: unknown) => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+      };
+
+      const zilmate = createZilMate({
+        sessionId,
+        onProgress: (event) => send({ type: 'progress', event }),
+      });
+
+      try {
+        const { text } = await zilmate.manager({ message });
+        send({ type: 'done', text });
+      } catch (error) {
+        send({
+          type: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-cache',
+    },
+  });
+}
+```
+
+**Client component** — reads the NDJSON stream and updates state as progress events and the final reply arrive:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+
+export function ZilMateChat() {
+  const [input, setInput] = useState('');
+  const [reply, setReply] = useState('');
+  const [progress, setProgress] = useState<string[]>([]);
+
+  async function send() {
+    setProgress([]);
+    const res = await fetch('/api/zilmate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: input, sessionId: 'web-1' }),
+    });
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const chunk = JSON.parse(line);
+        if (chunk.type === 'progress') setProgress((p) => [...p, chunk.event.label]);
+        if (chunk.type === 'done') setReply(chunk.text);
+      }
+    }
+  }
+
+  return (
+    <div>
+      <textarea value={input} onChange={(e) => setInput(e.target.value)} />
+      <button onClick={send}>Ask ZilMate</button>
+      <ul>{progress.map((p) => <li key={p}>{p}</li>)}</ul>
+      <pre>{reply}</pre>
+    </div>
+  );
+}
+```
+
+<Warning>
+  Set `runtime = 'nodejs'` and `maxDuration = 120` on your route. ZilMate's multi-agent orchestration can take longer than the default 10-second Edge runtime timeout, and it requires Node.js APIs not available in the Edge runtime.
+</Warning>
