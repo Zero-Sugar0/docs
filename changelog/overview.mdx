@@ -10,13 +10,13 @@ Follow along here for the latest updates to ZilMate.
 
   ### New features
 
-  - **ZilMate Ubiquity background service.** A new zero-dependency local daemon lets you highlight text in any application, press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (Windows) or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (macOS), and have ZilMate process the selection in **Pure Output Mode** and paste the response back in place. Your original clipboard contents are backed up and restored automatically. See [Ubiquity overview](/ubiquity/overview).
-  - **Zero-dependency cross-platform listener.** Windows uses a WinForms keyboard hook compiled on-the-fly inside PowerShell (`win-listener.ps1`) — no Electron, no C# binary. macOS scaffolds a native Quick Action service at `~/Library/Services/ZilMate Ubiquity.workflow/` and binds the hotkey through the system shortcuts framework.
-  - **Secure local daemon.** Ubiquity runs an Express-style HTTP service bound to `127.0.0.1:8124`. Every request must present a single-use bearer token written to `~/.zilmate-token`, protecting against unauthorized cross-origin or local-host calls.
+  - **ZilMate Ubiquity background service.** Highlight text in any app, press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> on Windows or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> on macOS, and ZilMate rewrites, translates, or answers in place — without leaving your current window. Your original clipboard is backed up and restored automatically. See [Ubiquity overview](/ubiquity/overview).
+  - **Lightweight, local-only daemon.** Ubiquity runs entirely on your machine with no extra runtimes to install. Requests stay on the loopback interface and are protected by a per-machine token, so no other app on your network can talk to it.
+  - **Pure Output Mode responses.** Selections are sent through ZilMate in a mode tuned for inline replacement — no preambles, no follow-up questions, just the answer ready to paste.
 
   ### Updates
 
-  - **New CLI surface.** `zilmate ubiquity install`, `start`, `stop`, `status`, and `uninstall` manage the daemon and platform service end-to-end.
+  - **New `zilmate ubiquity` commands.** Install, start, stop, check status, and uninstall the Ubiquity service from the [CLI](/cli/overview): `zilmate ubiquity install`, `start`, `stop`, `status`, and `uninstall`.
 </Update>
 
 <Update label="June 28, 2026" tags={["v1.10.3"]}>
