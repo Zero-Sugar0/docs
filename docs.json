@@ -75,6 +75,12 @@
               "voice/overview",
               "voice/chat-integrations"
             ]
+          },
+          {
+            "group": "Ubiquity",
+            "pages": [
+              "ubiquity/overview"
+            ]
           }
         ]
       },

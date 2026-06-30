@@ -1,0 +1,88 @@
+---
+title: "ZilMate Ubiquity: System-Wide AI Hotkey"
+sidebarTitle: "Overview"
+description: "Query ZilMate and inject responses anywhere on your OS with a global hotkey. Zero-dependency background daemon for Windows and macOS."
+---
+
+ZilMate Ubiquity is a zero-dependency background service that turns ZilMate into a system-wide assistant. Highlight text in any app, press a global hotkey, and ZilMate processes the selection and pastes the response back in place — without leaving your current window.
+
+Ubiquity ships with ZilMate **v1.10.4** and runs as a lightweight local daemon on Windows and macOS.
+
+## How it works
+
+1. You highlight text in any application.
+2. You press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (Windows) or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (macOS).
+3. The Ubiquity daemon backs up your current clipboard, issues an OS-level copy, and forwards the selection to ZilMate running in **Pure Output Mode** (no conversational preambles).
+4. The daemon writes the result back to the clipboard, pastes it into the active field, and restores your original clipboard contents.
+
+The full round-trip stays on `127.0.0.1` — no remote service is involved beyond the model calls ZilMate already makes.
+
+## Architecture
+
+Ubiquity is intentionally zero-dependency: no Electron wrapper, no compiled binaries, no extra runtimes.
+
+### Cross-platform hotkey layer
+
+- **Windows (`win-listener.ps1`).** A WinForms keyboard hook and message loop compiled on-the-fly inside PowerShell. Runs without any C# binary or Electron shell.
+- **macOS (`mac-installer.ts`).** Scaffolds a native Quick Action service at `~/Library/Services/ZilMate Ubiquity.workflow/`. Hooks into the macOS system shortcuts framework with a custom plist and a fast JavaScript for Automation (JXA) JSON parser to bind <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>.
+
+### Secure local daemon
+
+- **Bound to loopback.** The daemon runs an Express-style HTTP service on `127.0.0.1:8124` — never exposed to the network.
+- **Bearer-token auth.** A single-use authorization token is written to `~/.zilmate-token` on first run. Every request from the hotkey listener must present this token, which protects against unauthorized cross-origin or local-host requests.
+
+### Pristine clipboard handling
+
+Every invocation follows the same safe sequence:
+
+1. Back up the active clipboard contents.
+2. Issue an OS-level copy to capture the highlighted selection.
+3. Process the prompt through ZilMate in Pure Output Mode.
+4. Write the response to the clipboard and paste it into the active field.
+5. Restore the original clipboard contents.
+
+You never lose what was on your clipboard before triggering Ubiquity.
+
+## Install the service
+
+Ubiquity is installed alongside the main CLI. After you install or upgrade to ZilMate v1.10.4 or later, install the platform service:
+
+<CodeGroup>
+
+```powershell Windows
+zilmate ubiquity install
+```
+
+```bash macOS
+zilmate ubiquity install
+```
+
+</CodeGroup>
+
+On Windows this registers the PowerShell hotkey listener and starts the local daemon. On macOS this scaffolds the Quick Action workflow and prompts you to enable the shortcut under **System Settings → Keyboard → Keyboard Shortcuts → Services**.
+
+## Manage the daemon
+
+```bash
+zilmate ubiquity status      # Check whether the daemon is running
+zilmate ubiquity start       # Start the background daemon
+zilmate ubiquity stop        # Stop the background daemon
+zilmate ubiquity uninstall   # Remove the platform service and tokens
+```
+
+The daemon listens on `127.0.0.1:8124` and reads its bearer token from `~/.zilmate-token`. Delete that file and restart the daemon to rotate the token.
+
+## When to use Ubiquity
+
+- Rewriting a sentence inside an email or doc without context-switching to another window.
+- Translating or summarizing a selection in any app.
+- Generating short code snippets or shell commands inline.
+- Quick fact lookups while keeping your hands on the keyboard.
+
+For multi-turn conversations, long-running jobs, or anything that benefits from a persistent session, use [`zilmate talk`](/cli/talk-manager) or the [SDK](/sdk/overview) instead.
+
+## Limitations
+
+- **Windows and macOS only.** A Linux listener is not yet shipped.
+- **Single hotkey.** The bindings (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> / <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>) are fixed in v1.10.4.
+- **Pure Output Mode only.** Responses are returned without preambles or follow-up questions, optimized for inline replacement.
