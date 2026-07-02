@@ -1,55 +1,69 @@
-# Mintlify Starter Kit
+# ZilMate Docs
 
-Use the starter kit to get your docs deployed and ready to customize.
+Source for the official **ZilMate** documentation, published with [Mintlify](https://mintlify.com) at [zilmate.mintlify.app](https://zilmate.mintlify.app).
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+ZilMate is a production-grade multi-agent AI runtime for Node.js and TypeScript. It ships a `zilmate` CLI, a `zilmate/server` SDK, a decentralized swarm of 30+ specialist agents organized as a Digital Corporation, long-term memory, background job scheduling with Upstash QStash, real-time voice via Deepgram, and — as of v1.10.4 — the **ZilMate Ubiquity** global-hotkey background service.
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+Product code lives at [`zero-sugar0/zilmate`](https://github.com/zero-sugar0/zilmate). This repo only contains the docs site.
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
+## What's in here
 
-## AI-assisted writing
+```
+.
+├── docs.json                   # Mintlify config: theme, nav, tabs
+├── introduction.mdx            # Landing page
+├── quickstart.mdx              # Install + first request
+├── configuration.mdx           # Env vars and setup
+├── sdk/                        # createZilMate(), manager/coding/subagents, model selection
+├── swarm/                      # Digital Corporation, departments, war rooms, safety firewall
+├── memory/                     # Long-term memory, Corporate Wiki, session continuity
+├── jobs/                       # Background jobs, scheduling, QStash webhooks
+├── tools/                      # DevOps, SysOps, cloud storage, multimedia, browser/Composio
+├── voice/                      # Real-time voice + chat integrations
+├── ubiquity/                   # System-wide hotkey background service (v1.10.4)
+├── cli/                        # zilmate CLI reference
+└── changelog/                  # Product changelog
+```
 
-Set up your AI coding tool to work with Mintlify:
+## Local preview
+
+Install the Mintlify CLI once:
 
 ```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
 npm i -g mint
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+Run the dev server from the repo root (where `docs.json` lives):
 
-```
+```bash
 mint dev
 ```
 
-View your local preview at `http://localhost:3000`.
+Open http://localhost:3000. Validate before pushing:
 
-## Publishing changes
+```bash
+mint validate
+mint broken-links
+```
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+## Editing conventions
 
-## Need help?
+- All pages are MDX with YAML frontmatter (`title`, `sidebarTitle`, `description`).
+- Sentence case for headings ("Getting started", not "Getting Started").
+- Second-person voice, active tense.
+- Internal links use root-relative paths (`/sdk/overview`), never full URLs.
+- Register new pages under the correct group in `docs.json`.
+- Code blocks always carry a language tag.
 
-### Troubleshooting
+## Deployment
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+Merges to `main` trigger a Mintlify deploy automatically. Preview builds are attached to each PR. The site is live at [zilmate.mintlify.app](https://zilmate.mintlify.app).
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+## Reporting issues
+
+- **Docs bugs, typos, missing content:** open an issue or PR against this repo.
+- **Product bugs or feature requests:** file them at [zero-sugar0/zilmate](https://github.com/zero-sugar0/zilmate/issues).
+
+## License
+
+Documentation content follows the license in [`LICENSE`](./LICENSE). The ZilMate product is licensed separately in its own repo.
