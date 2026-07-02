@@ -1,179 +1,184 @@
 ---
-title: "ZilMate Subagents: Access Specialist Agents Directly"
+title: "ZilMate Subagents: Call Specialist Agents Directly"
 sidebarTitle: "Subagents"
-description: "Call ZilMate's specialist agents directly — coding, research, image, goal planning, and more — bypassing the Manager for faster, focused responses."
+description: "Skip the Manager and call ZilMate's specialist agents — coding, research, image, goal planning, copywriter — plus 30+ swarm specialists directly for faster, focused responses."
 ---
 
-When you know exactly which specialist you need, call it directly instead of routing through the Manager. Direct subagent calls skip orchestration overhead — no routing logic, no delegation step — and return faster for focused, well-defined tasks. Each subagent is fully capable on its own; the Manager only adds value when the task spans multiple domains or requires dynamic routing.
+When you know exactly which specialist you need, call it directly instead of routing through the Manager. Direct calls skip orchestration overhead — no routing logic, no delegation step — and return faster for focused, well-defined tasks. The Manager only adds value when the task spans multiple domains.
 
----
+## SDK subagent method reference
 
-## Subagent method reference
+Every subagent hangs off the same `createZilMate()` instance, so they share your `sessionId`, `onProgress`, and `confirm` handlers.
 
 | Method | Agent | Input type | Best for |
 |---|---|---|---|
 | `manager({ message })` | Main orchestrator | `ZilMateTextInput` | General tasks, routing, tools, memory |
+| `chat({ message })` | Conversational chat | `ZilMateTextInput` | Open-ended dialogue with no tool loops |
 | `coding({ prompt })` | Coding agent | `ZilMatePromptInput` | Repo edits, builds, tests, patches |
 | `imageAgent({ prompt })` | Image director | `ZilMatePromptInput` | Image generation and prompt refinement |
-| `goalManager({ prompt })` | Goal planner | `ZilMatePromptInput` | Break goals into steps and schedules |
+| `goalManager({ prompt })` | Goal planner | `ZilMatePromptInput` | Break high-level goals into ordered steps |
 | `research({ query })` | Docs/web research | `ZilMateResearchInput` | Sourced answers with citations |
 | `help({ question })` | Quick help | `ZilMateQuestionInput` | Usage questions and troubleshooting |
 | `post({ prompt })` | Copywriter | `ZilMatePromptInput` | Short social posts and status updates |
-| `chat({ message })` | Conversational chat | `ZilMateTextInput` | Open-ended dialogue |
+| `guide({ message })` | Walkthrough guide | `ZilMateTextInput` | Step-by-step explanations |
 
----
+### Input type variants
 
-## Input type variants
-
-ZilMate uses distinct input shapes to keep each agent's interface explicit:
+ZilMate uses distinct input shapes so each agent's interface is explicit:
 
 ```ts
-// ZilMateTextInput — for message-based agents
 type ZilMateTextInput = { message: string };
-
-// ZilMatePromptInput — for prompt-based agents
 type ZilMatePromptInput = { prompt: string };
-
-// ZilMateQuestionInput — for the help agent
 type ZilMateQuestionInput = { question: string };
-
-// ZilMateResearchInput — for the research agent
-type ZilMateResearchInput = { query: string };
+type ZilMateResearchInput = { query: string; sources?: number };
 ```
 
-The `manager()` and `chat()` methods also accept `ZilMatePromptInput` — the SDK normalises whichever field you provide.
+All agent methods return `Promise<{ text: string }>`.
 
----
-
-## Image agent
-
-The image director runs a two-step pipeline: it first calls `enhanceImagePrompt` to expand and sharpen your description, then calls `generateImage` to produce the final asset. This ensures the generation model receives a well-structured prompt even when your input is brief.
+### Example: focused research call
 
 ```ts
 import { createZilMate } from 'zilmate/server';
 
-const zilmate = createZilMate({ sessionId: 'creative-session' });
-
-const { text } = await zilmate.imageAgent({
-  prompt: 'Product hero image: dark SaaS dashboard on laptop, cyan accent, no text gibberish, 16:9',
-});
-
-// text contains the generation result and the enhanced prompt used
-console.log(text);
-```
-
-When you need lower-level control — choosing a provider, specifying dimensions, or setting an output directory — use the `image()` method instead, which exposes `ImageGenerationOptions` directly:
-
-```ts
-import { image } from 'zilmate/server';
-
-const result = await image({
-  prompt: 'Minimal product screenshot on white background',
-  provider: 'openai',
-  size: '1792x1024',
-  outputDir: './public/assets',
-});
-```
-
----
-
-## Goal manager
-
-The goal manager takes a high-level objective and breaks it into concrete, ordered steps. Use it when you want a structured execution plan before handing work to other agents.
-
-```ts
-import { createZilMate } from 'zilmate/server';
-
-const zilmate = createZilMate({ sessionId: 'planning-session' });
-
-const { text } = await zilmate.goalManager({
-  prompt: 'Launch a public beta for my SaaS app in 30 days. I have a working MVP but no auth or billing yet.',
-});
-
-console.log(text);
-// → Step 1: Integrate Clerk for authentication (3 days)
-// → Step 2: Add Stripe subscription with free-trial plan (2 days)
-// → ...
-```
-
----
-
-## Research agent
-
-The research agent searches the web and your documentation to return sourced, accurate answers. It is the right call whenever you need up-to-date information or want references alongside the reply.
-
-```ts
-import { createZilMate } from 'zilmate/server';
-
-const zilmate = createZilMate({ sessionId: 'research-session' });
+const zilmate = createZilMate({ sessionId: 'weekly-brief' });
 
 const { text } = await zilmate.research({
-  query: 'Vercel AI SDK streaming patterns for App Router',
+  query: 'What are the newest changes in Next.js 15 App Router streaming?',
 });
 
 console.log(text);
 ```
 
-You can also pass a `{ message }` to the research agent when the phrasing is more conversational:
+### Example: goal-planner + coding pipeline
+
+Chain specialists explicitly when you want direct control over the flow:
 
 ```ts
-const { text } = await zilmate.research({
-  message: 'What are the current rate limits for the OpenAI GPT-4o API?',
+const plan = await zilmate.goalManager({
+  prompt: 'Ship a landing page with waitlist signup and Stripe test-mode checkout.',
 });
+
+const build = await zilmate.coding({
+  prompt: `Follow this plan and implement it end-to-end:\n${plan.text}`,
+});
+
+console.log(build.text);
 ```
 
 ---
 
-## Help agent
+## The Decentralized Swarm
 
-Use the help agent for quick answers about ZilMate's own features, configuration, and troubleshooting. It responds without spinning up full orchestration.
+Alongside the SDK's built-in subagents, ZilMate ships a **Decentralized Swarm** — **30+ specialists** organized into **6 core departments**. Each has custom system instructions, focused skills, and a curated toolkit.
+
+### Departments & specialists
+
+| Department | Specialist | Primary domain |
+|---|---|---|
+| **Strategy & Product** | `productManager` | Roadmap and issue specs (GitHub, Linear) |
+|  | `marketAnalyst` | Competitive research (Twitter, Reddit, Firecrawl) |
+|  | `uxResearcher` | UX audits and browser-session analysis |
+| **Engineering & Design** | `architect` | ADR design and interface contracts |
+|  | `fullStackCoder` | Code implementation (Git, VS Code, Drizzle) |
+|  | `qaEngineer` | Test suites and dev loops (Playwright, Vitest) |
+|  | `devopsSre` | Cloud and Docker (Render, AWS, Vercel) |
+|  | `creativeDirector` | Graphic assets and prompt design |
+|  | `securityAuditor` | Penetration, dependency, and sandbox reviews |
+| **Development Specialists** | `frontendArchitect` | UI foundations, styling systems, Tailwind v4 |
+|  | `backendArchitect` | API routes, middleware, edge limits, auth |
+|  | `dbSpecialist` | Schemas and migrations (Postgres, Drizzle, Neon) |
+|  | `salesOps` | CRM syncing (HubSpot, Salesforce, Notion) |
+| **Growth & Marketing** | `growthHacker` | Funnel CRO and Stripe metrics |
+|  | `seoExpert` | On-page and AI-search SEO |
+|  | `contentWriter` | Articles, docs, copywriting |
+| **Operations & Legal** | `financeAnalyst` | Ledger syncs and tax exports |
+|  | `customerSuccess` | Feedback routing and ticket automation |
+|  | `legalCounsel` | Privacy audits and terms drafts |
+| **Data & Automation** | `agentOptimizer` | Prompt/memory tuning, learning harvester |
+
+### Joint War Rooms (`collaborateWithPeer`)
+
+Swarm specialists don't wait on a central router. When the `frontendArchitect` needs to build a form, they open a **Joint War Room** with the `backendArchitect` directly to negotiate the JSON schema:
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend Architect
+    participant JWR as Joint War Room (Sub-thread)
+    participant BE as Backend Architect
+
+    FE->>JWR: Open war room ("collaborateWithPeer")
+    FE->>BE: "I'm building the lead intake UI. What params do you accept?"
+    BE->>FE: "email (string), name (string), phone (string, optional)."
+    FE->>FE: Scaffold UI matching the schema
+    FE->>JWR: Close war room
+    Note over FE: Frontend Architect updates status report
+```
+
+`collaborateWithPeer` instantiates the requested specialist, sets up a shared conversation loop, runs the collaborative task, and returns the unified result to the caller.
+
+### Calling a swarm specialist programmatically
+
+You can bypass the Manager and target a single specialist:
 
 ```ts
-const { text } = await zilmate.help({
-  question: 'How do I enable Redis for multi-instance memory?',
-});
+import { createSwarmSpecialist } from 'zilmate/server';
+
+async function runSeoAudit() {
+  const seoAgent = createSwarmSpecialist('seoExpert');
+  await seoAgent.init('seo_landing_page_session');
+
+  const report = await seoAgent.run(`
+    Verify SEO health of our homepage and write a metadata recommendation report.
+    Ensure the page adheres to our "ai-seo" guidelines so ChatGPT and Perplexity can cite us.
+  `);
+
+  console.log(report);
+}
 ```
 
 ---
 
-## Post agent
+## Swarm observability
 
-The post agent writes short-form copy — social posts, changelogs, release announcements — from a prompt.
+Nested multi-agent runs can be hard to debug. ZilMate ships a full trace tracker that logs every agent switch, tool call, and Joint War Room sub-thread.
 
 ```ts
-const { text } = await zilmate.post({
-  prompt: 'Write a Twitter post announcing ZilMate v2 with background job support. Upbeat tone, max 280 chars.',
-});
+import { loadSessionSpans, renderTraceTree, generateHtmlDashboard } from 'zilmate/server';
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+async function exportSwarmTrace(sessionId: string) {
+  const spans = await loadSessionSpans(sessionId);
+
+  // ASCII tree in the terminal
+  console.log(renderTraceTree(spans));
+
+  // Glassmorphic HTML dashboard
+  const html = generateHtmlDashboard(spans, sessionId);
+  const outputPath = path.join(process.cwd(), `logs/dashboard-${sessionId}.html`);
+  await writeFile(outputPath, html, 'utf8');
+
+  console.log(`Dashboard: ${outputPath}`);
+}
 ```
+
+The HTML dashboard includes collapsible directory-tree nodes with query-based auto-expand, clickable KPI cards that filter traces in place, a chronological Gantt timeline, and one-click Copy JSON on every inspector panel.
 
 ---
 
-## Combining subagents
+## Where to go next
 
-Call multiple agents in sequence when a task has distinct phases. Research first, then act:
-
-```ts
-import { createZilMate } from 'zilmate/server';
-
-const zilmate = createZilMate({ sessionId: 'combined-session' });
-
-// Step 1: research the pattern
-const { text: researchResult } = await zilmate.research({
-  query: 'Next.js App Router middleware auth patterns with Clerk',
-});
-
-// Step 2: implement based on findings
-const { text: codingResult } = await zilmate.coding({
-  prompt: `Using this reference:\n${researchResult}\n\nAdd Clerk middleware to middleware.ts in this repo.`,
-});
-
-console.log(codingResult);
-```
-
-<Tip>
-  Pass results from one subagent as context in the next subagent's prompt. This gives each specialist exactly the information it needs without routing through the Manager.
-</Tip>
-
-<Note>
-  All subagent methods respect the `sessionId`, `onProgress`, and `confirm` options you set on `createZilMate()`. Progress events fire for every tool call made inside a specialist, so your UI sees the full activity stream even on direct calls.
-</Note>
+<CardGroup cols={2}>
+  <Card title="Swarm overview" icon="sitemap" href="/swarm/overview">
+    Full architecture of the Digital Corporation and how peer-to-peer coordination works.
+  </Card>
+  <Card title="Joint war rooms" icon="users" href="/swarm/joint-war-rooms">
+    Deep dive on `collaborateWithPeer` and the shared context bus.
+  </Card>
+  <Card title="Model selection" icon="sliders" href="/sdk/model-selection">
+    Assign different models to different specialists.
+  </Card>
+  <Card title="Corporate Wiki" icon="book" href="/memory/corporate-wiki">
+    How swarm specialists publish and query shared contracts.
+  </Card>
+</CardGroup>
